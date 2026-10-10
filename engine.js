@@ -68,7 +68,7 @@
     log(s,a.label);
     if(a.test){s.phase='roll';return true;}
     apply(s,a.effects);
-    if(alive(s)){s.current.result=effectSummary(a.effects);s.current.pending='finish';s.phase='result';}
+    if(alive(s)){s.current.result=a.effects.text || effectSummary(a.effects);s.current.pending='finish';s.phase='result';}
     return true;
   }
   function roll(s,rng=Math.random) {

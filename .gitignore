@@ -1,0 +1,11 @@
+# 원문 확인 이미지와 로컬 플레이 검증 자료
+검증자료/
+
+# 설치 파일, 개인 설정, 임시 파일
+node_modules/
+.env
+.env.*
+*.log
+*.tmp
+Thumbs.db
+desktop.ini

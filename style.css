@@ -278,3 +278,26 @@ button:not(.playing-card):disabled{opacity:.48;transform:none;filter:none;box-sh
 button:not(.playing-card):focus-visible,.outcomes>summary:focus-visible{outline:3px solid #be913b;outline-offset:5px}
 button.playing-card:active:not(:disabled){scale:.98}
 @media(prefers-reduced-motion:reduce){button:not(.playing-card),.outcomes>summary{transition:none}}
+
+/* 여섯 면과 눈을 가진 입체 주사위. 결과 면은 정면, 옆면은 깊이 표현용입니다. */
+.dice-row{gap:24px;padding:7px 0 0;min-height:102px}
+.die-slot{--die-size:50px;--die-half:25px;width:70px;flex:0 0 70px;text-align:center}
+.die-stage{position:relative;width:70px;height:72px;display:grid;place-items:center;perspective:500px}
+.die-stage:before{content:'';position:absolute;left:8px;right:5px;bottom:1px;height:13px;background:#263d3038;border-radius:50%;filter:blur(5px)}
+.die-view{width:var(--die-size);height:var(--die-size);transform:rotateX(-18deg) rotateY(-22deg);transform-style:preserve-3d}
+.die-cube{position:relative;width:100%;height:100%;transform-style:preserve-3d}
+.die-face{position:absolute;inset:0;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);gap:3px;padding:9px;border:1px solid #a9b39d;border-radius:5px;background:linear-gradient(140deg,#fffef5,#e8e7d8);box-shadow:inset 0 0 0 2px #fffdf5,inset 0 -3px 5px #afba9c44;backface-visibility:hidden}
+.die-face-1{transform:translateZ(var(--die-half))}
+.die-face-2{transform:rotateX(90deg) translateZ(var(--die-half))}
+.die-face-3{transform:rotateY(90deg) translateZ(var(--die-half))}
+.die-face-4{transform:rotateY(-90deg) translateZ(var(--die-half))}
+.die-face-5{transform:rotateX(-90deg) translateZ(var(--die-half))}
+.die-face-6{transform:rotateY(180deg) translateZ(var(--die-half))}
+.die-pip{width:7px;height:7px;align-self:center;justify-self:center;border-radius:50%;background:#263e32;box-shadow:inset 0 1px 2px #11251f99,0 1px 0 #ffffffc0}
+.die-face-1 .die-pip{width:10px;height:10px;background:#a84b39}
+.die-question{position:absolute;inset:0;display:grid;place-items:center;color:#89967b;font-size:1.7rem;background:#f4f3e8;border-radius:4px}
+.die-slot.unrolled .die-pip{opacity:.4}
+.die-value{display:block;height:23px;line-height:23px;margin-top:4px;font-weight:800;font-size:.88rem;font-variant-numeric:tabular-nums;color:var(--forest)}
+.die-slot.unrolled .die-value{font-size:.65rem;font-weight:400;color:var(--muted)}
+.is-rolling .die-cube{will-change:transform}
+.is-rolling .die-value{color:var(--muted)}

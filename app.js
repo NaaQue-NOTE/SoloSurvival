@@ -4,7 +4,7 @@
   const $=id=>document.getElementById(id),app=$('app');
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const signed=n=>n>0?`+${n}`:String(n);
-  let state=null,saved=null,saveError='',previousVitals=null,vitalTransition=null,selectedHand=null,isDealing=false,isSubmitting=false;
+  let state=null,saved=null,saveError='',previousVitals=null,vitalTransition=null,selectedHand=null,isDealing=false,isSubmitting=false,isRolling=false;
   try{const raw=localStorage.getItem(KEY);if(raw)saved=E.restore(raw);}catch(e){saveError='기존 저장을 읽지 못했습니다. 새 여정을 시작하면 저장이 교체됩니다.';}
   function landscape(){return `<svg class="landscape" viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#425345"/><stop offset="1" stop-color="#9b966d"/></linearGradient></defs><rect width="600" height="300" fill="url(#sky)"/><circle cx="418" cy="84" r="40" fill="#e4c894" opacity=".8"/><path d="M0 174 75 131 122 153 182 101 235 153 299 132 370 174 466 122 530 159 600 123V300H0Z" fill="#667461"/><path d="M0 218 80 193 129 216 235 173 330 213 454 179 600 209V300H0Z" fill="#3d5545"/><path d="M0 252 105 223 197 240 311 218 431 248 600 217V300H0Z" fill="#253d31"/><path d="M294 300 Q376 270 310 249 Q278 237 346 219 L359 219 Q302 238 334 247 Q401 272 348 300Z" fill="#b5a67e" opacity=".65"/><path d="M451 179v-32h17v-12h20v40h10v-24h16v34M60 199v-35h23v-17h9v48" fill="#3a4c3e"/><path d="M537 259v-50m-15 20 15-20 16 21m-26-33 10-18 11 18M139 240v-44m-15 21 15-25 17 25" stroke="#20382b" stroke-width="5" fill="none"/><path d="M354 207v-10l8-7 9 7v10Zm6 0v-6h5v6" fill="#ead39c"/><circle cx="291" cy="269" r="3" fill="#182b22"/><path d="m291 272-2 12m2-10 5 6m-6 3-4 10m4-9 5 9" stroke="#182b22" stroke-width="2.5"/></svg>`;}
   function button(action,label,extra='',secondary=false){return `<button data-action="${action}" ${extra} class="${secondary?'secondary':''}">${label}</button>`;}
@@ -99,13 +99,47 @@
       if(!document.querySelector('dialog[open]'))app.querySelector('.event-title')?.focus({preventScroll:true});
     }
   }
+  const dieAngles={1:[0,0],2:[-90,0],3:[0,-90],4:[0,90],5:[90,0],6:[0,180]};
+  const diePips={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
+  function dieView(value,index){
+    const [x,y]=dieAngles[value||1];
+    return `<div class="die-slot ${value?'':'unrolled'} ${isRolling?'is-rolling':''}" role="img" aria-label="${index+1}번 주사위 ${isRolling?'굴리는 중':value||'대기'}"><div class="die-stage"><div class="die-view"><div class="die-cube" data-value="${value||1}" style="transform:rotateX(${isRolling?0:x}deg) rotateY(${isRolling?0:y}deg) rotateZ(0deg)">${[1,2,3,4,5,6].map(n=>`<span class="die-face die-face-${n}" aria-hidden="true">${diePips[n].map(p=>`<i class="die-pip" style="grid-area:${Math.ceil(p/3)} / ${(p-1)%3+1}"></i>`).join('')}${!value&&n===1?'<b class="die-question">?</b>':''}</span>`).join('')}</div></div></div><span class="die-value" aria-hidden="true">${isRolling?'…':value||'대기'}</span></div>`;
+  }
+  async function rollDice(){
+    if(!E.roll(state))return;
+    persist();
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches){render();return;}
+    isRolling=true;render();
+    const animations=[];
+    try{
+      const cubes=[...app.querySelectorAll('.die-cube')];
+      for(const cube of cubes){
+        const [x,y]=dieAngles[Number(cube.dataset.value)];
+        const mode=Math.floor(Math.random()*3),turn=()=>360*(4+Math.floor(Math.random()*3))*(Math.random()<.5?-1:1);
+        const rx=(mode!==1?turn():0)+x,ry=(mode!==0?turn():0)+y,rz=mode===2?turn():0;
+        const duration=1250+Math.random()*250;
+        animations.push(cube.animate([
+          {transform:'rotateX(0deg) rotateY(0deg) rotateZ(0deg)'},
+          {transform:`rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`}
+        ],{duration,easing:'cubic-bezier(.12,.68,.18,1)',fill:'forwards'}));
+        animations.push(cube.closest('.die-view').animate([
+          {translate:'0 0',offset:0},{translate:'0 -9px',offset:.2},{translate:'0 2px',offset:.82},{translate:'0 0',offset:1}
+        ],{duration,easing:'ease-out',fill:'forwards'}));
+      }
+      await Promise.all(animations.map(a=>a.finished));
+    }catch{/* 회전이 중단되어도 먼저 저장한 주사위 결과를 표시합니다. */}
+    finally{
+      animations.forEach(a=>a.cancel());isRolling=false;render();
+      if(!document.querySelector('dialog[open]'))app.querySelector('[data-action="resolve"]')?.focus({preventScroll:true});
+    }
+  }
   function dicePanel(){
     const c=state.current,e=c?D.events[c.id]:null,su=e?D.suits[e.suit]:null;
     const hasRoll=!!e?.outcomes,rolled=!!c?.dice;
     let content='';
     if(!hasRoll)content=`<div class="dice-idle"><span aria-hidden="true">${e?'◇':'⚄'}</span><strong>${e?'주사위 없이 진행':'다음 사건을 기다립니다'}</strong><p>${e?'카드의 선택과 효과를 확인해 주세요.':'카드를 뽑으면 판정 여부가 표시됩니다.'}</p></div>`;
-    else content=`<div class="dice-area"><div class="dice-row">${[0,1].map(i=>`<span class="die ${rolled?'':'unrolled'}" aria-label="${i+1}번 주사위 ${rolled?c.dice[i]:'대기'}">${rolled?c.dice[i]:'?'}</span>`).join('')}</div><p class="dice-formula">${rolled?`${c.dice.join(' + ')} + 능력치 (${signed(c.modifier)}) + 손패 ${c.bonus+E.pendingBonus(state)}`:`6면체 두 개 + ${su.symbol} ${su.stat} ${signed(state.stats[e.suit])}`}</p>${rolled?`<div class="total tier-${E.tier(state)}" aria-live="polite">${E.total(state)} · ${['실패','성공','큰 성공'][E.tier(state)]}</div>`:`<div class="total">${state.phase==='choice'?'선택 후 판정을 진행합니다.':'운과 준비를 시험할 때입니다.'}</div>`}</div>${state.phase==='roll'?`<div class="actions">${button('roll','주사위 두 개 굴리기')}</div>`:state.phase==='rolled'?`<div class="actions">${button('resolve','이 결과로 확정하기')}</div><p class="action-hint">${c.pendingBoosts?.length?`손패 +${E.pendingBonus(state)} · ${c.pendingBoosts.length}장 사용 예정`:'손패를 사용해 결과를 높인 뒤 확정할 수 있습니다.'}</p>`:''}`;
-    return `<aside class="event-dice" aria-label="주사위 판정" ${isDealing?'inert aria-hidden="true"':''}><div class="event-section-label">주사위 판정</div>${content}</aside>`;
+    else content=`<div class="dice-area"><div class="dice-row">${[0,1].map(i=>dieView(rolled?c.dice[i]:null,i)).join('')}</div><p class="dice-formula">${isRolling?'두 주사위가 멈추기를 기다립니다.':rolled?`${c.dice.join(' + ')} + 능력치 (${signed(c.modifier)}) + 손패 ${c.bonus+E.pendingBonus(state)}`:`6면체 두 개 + ${su.symbol} ${su.stat} ${signed(state.stats[e.suit])}`}</p>${isRolling?'<div class="total">주사위를 굴리는 중…</div>':rolled?`<div class="total tier-${E.tier(state)}" aria-live="polite">${E.total(state)} · ${['실패','성공','큰 성공'][E.tier(state)]}</div>`:`<div class="total">${state.phase==='choice'?'선택 후 판정을 진행합니다.':'운과 준비를 시험할 때입니다.'}</div>`}</div>${isRolling?`<div class="actions">${button('roll','굴리는 중…','disabled')}</div><p class="action-hint">잠시 후 손패로 결과를 높일 수 있습니다.</p>`:state.phase==='roll'?`<div class="actions">${button('roll','주사위 두 개 굴리기')}</div>`:state.phase==='rolled'?`<div class="actions">${button('resolve','이 결과로 확정하기')}</div><p class="action-hint">${c.pendingBoosts?.length?`손패 +${E.pendingBonus(state)} · ${c.pendingBoosts.length}장 사용 예정`:'손패를 사용해 결과를 높인 뒤 확정할 수 있습니다.'}</p>`:''}`;
+    return `<aside class="event-dice" aria-label="주사위 판정" aria-busy="${isRolling}" ${isDealing?'inert aria-hidden="true"':''}><div class="event-section-label">주사위 판정</div>${content}</aside>`;
   }
   function eventView(){
     if(state.phase==='over'){const win=state.outcome==='won';return `<section class="panel event-panel"><div class="end-mark" aria-hidden="true">${win?'⌂':'◌'}</div><div class="eyebrow" style="text-align:center">${win?'여정 완료':'여정 종료'}</div><h2 class="end-title">${win?'살아남았습니다.':'여기서 잠시 멈춥니다.'}</h2><p class="end-description">${win?'황무지 너머, 마침내 피난처의 불빛에 닿았습니다.':'부상이 5에 도달했습니다. 이번 여정은 끝났지만,<br>다른 생존자의 이야기를 시작할 수 있습니다.'}</p><div class="end-stats"><span>버틴 시간<strong>${state.day}일</strong></span><span>남은 식량<strong>${state.food}</strong></span><span>남은 덱<strong>${state.deck.length}장</strong></span></div><div class="actions">${button('restart','새로운 생존자로 시작하기')}</div></section>`;}
@@ -134,7 +168,8 @@
     const handFocused=!!document.activeElement?.closest('.hand-panel');
     app.innerHTML=`<div class="game-dashboard"><div class="play-summary"><div class="journey-identity"><div class="identity-line"><h1>${esc(state.name)}의 여정</h1><span class="day-badge">${state.day?`${state.day}일차`:'출발 준비'}</span></div><p class="muted">먹을 것을 찾고, 위기를 넘고, 한 걸음 더 나아가세요.</p></div>${button('log-open',`<span>▤ 지나온 여정</span><small>기록 ${state.log.length}개</small>`,'aria-haspopup="dialog" aria-controls="log-dialog"',true)}${route()}</div>${survivor()}<div class="main-column">${eventView()}</div>${hand()}</div>`;
     if(app.querySelector('.hand-scroll'))app.querySelector('.hand-scroll').scrollLeft=scroll;
-    $('new-open').disabled=isDealing;
+    $('new-open').disabled=isDealing||isRolling;
+    app.inert=isRolling||isSubmitting;
     $('growth-content').innerHTML=growth();
     if(growthFocus){const target=$('growth-content').querySelector(`[data-suit="${growthFocus}"]`);(target&&!target.disabled?target:$('growth-dialog').querySelector('[data-close]')).focus({preventScroll:true});}
     for(const panel of app.querySelectorAll('.growth-trigger,.hand-panel'))panel.inert=isDealing;
@@ -160,7 +195,8 @@
     }catch{/* 연출이 중단되어도 이미 저장한 결과를 표시합니다. */}finally{layer.remove();isSubmitting=false;app.inert=false;render();app.querySelector('.event-title')?.focus({preventScroll:true});}
   }
   document.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b||b.disabled)return;const a=b.dataset.action;
-    if(isDealing||isSubmitting)return;
+    if(isDealing||isSubmitting||isRolling)return;
+    if(a==='roll'){announce('');void rollDice();return;}
     if(a==='resolve'){void submitResult();return;}
     if(a==='next'){
       announce('');if(!E.next(state))return;
@@ -173,7 +209,7 @@
     if(a==='food-count'){$('food-total').textContent=String(state.food);$('food-dialog').showModal();return;}
     if(a==='resume'){state=E.restore(JSON.stringify(saved));render();$('save-status').textContent='저장한 여정을 불러옴';return;}
     if(a==='restart'){state=null;setup();return;}
-    const funcs={choose:()=>E.choose(state,b.dataset.choice),roll:()=>E.roll(state),proceed:()=>E.proceed(state),boost:()=>E.boost(state,b.dataset.card),'cancel-boost':()=>E.cancelBoost(state,b.dataset.card),trade:()=>E.trade(state,b.dataset.card),heal:()=>E.heal(state),grow:()=>E.grow(state,b.dataset.suit)};
+    const funcs={choose:()=>E.choose(state,b.dataset.choice),proceed:()=>E.proceed(state),boost:()=>E.boost(state,b.dataset.card),'cancel-boost':()=>E.cancelBoost(state,b.dataset.card),trade:()=>E.trade(state,b.dataset.card),heal:()=>E.heal(state),grow:()=>E.grow(state,b.dataset.suit)};
     if(funcs[a]){announce('');if(funcs[a]()){persist();render();}}
   });
   $('rules-open').addEventListener('click',()=>$('rules-dialog').showModal());

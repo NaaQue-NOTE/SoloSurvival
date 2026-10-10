@@ -123,3 +123,75 @@ button.playing-card:hover:not(:disabled){background:linear-gradient(135deg,#fffe
 .draw-caption{position:absolute;left:210px;right:26px;top:44%;text-align:center;color:#927a4e;font-size:.83rem;letter-spacing:.08em}
 @container(max-width:520px){.event-board{grid-template-columns:minmax(0,1fr);gap:24px;padding:22px}.card-table{flex-direction:row;justify-content:center;align-items:center;gap:35px;padding:8px 0 15px;border-bottom:1px solid #e1e4d5}.event-content .story{font-size:.87rem}.draw-caption{position:static;grid-column:1;margin:0}.is-dealing .event-content{display:none}.event-content .event-heading h2{font-size:1.3rem}.event-board{min-height:470px}}
 @media(prefers-reduced-motion:reduce){.event-content{transition:none}}
+/* 가로 게임판: 상단 상태, 중앙 카드와 판정, 하단 손패 */
+main:has(.game-dashboard){max-width:1600px;padding-top:22px}
+.topbar{max-width:1600px}
+.game-dashboard{display:grid;gap:20px;min-width:0}
+.play-summary{display:grid;grid-template-columns:minmax(220px,1fr) 210px minmax(340px,1.45fr);align-items:center;gap:20px}
+.identity-line{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.journey-identity{min-width:0}
+.journey-identity h1{font-size:1.4rem;margin:0;overflow-wrap:anywhere}
+.journey-identity p{font-size:.75rem;margin:10px 0 0}
+.play-summary .route{margin:0;padding:20px 24px}
+.play-summary>button{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 18px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:12px;font-size:.82rem;box-shadow:var(--shadow)}
+.play-summary>button small{font-weight:400;font-size:.68rem;white-space:nowrap}
+.status-ribbon{display:grid;grid-template-columns:1.15fr 1fr 1.1fr .85fr .85fr;gap:16px;align-items:stretch}
+.status-ribbon .vitals{display:contents}
+.status-ribbon .panel,.status-ribbon .vital-resource{padding:19px 20px;border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:var(--shadow);min-width:0}
+.status-ribbon .panel-title{margin:0 0 15px;gap:8px}
+.status-ribbon .panel-title h2{font-size:.85rem}
+.status-ribbon .panel-title small{font-size:.64rem;white-space:nowrap}
+.status-ribbon .vital-resource h3{margin-bottom:12px}
+.status-ribbon .vital-hint{max-width:180px;font-size:.65rem}
+.status-ribbon .stat-pair{display:flex;flex-direction:column;justify-content:center}
+.status-ribbon .stat-row{padding:13px 0;font-size:.84rem}
+.status-ribbon .stat-row:first-child{border-top:0}
+.growth-trigger{display:grid;grid-template-columns:1fr auto;gap:8px 6px;width:100%;padding:11px 10px;border:1px solid #d9dfcd;border-radius:9px;background:#f0f3e8;color:#50624e;text-align:left;transform:none!important}
+.growth-trigger:hover:not(:disabled){background:#e7ecdc}
+.growth-trigger-title{display:flex;align-items:center;gap:5px;font-size:.76rem;white-space:nowrap}
+.growth-count{align-self:center;font-size:.68rem;white-space:nowrap;font-weight:400}
+.growth-beacon{display:grid;place-items:center;width:19px;height:19px;color:#8a977f;font-size:1rem;flex-shrink:0}
+.growth-caption,.growth-available{grid-column:1/-1;font-size:.62rem;font-weight:400;line-height:1.6}
+.growth-caption{color:var(--muted)}
+.growth-trigger.can-grow{border-color:#c69a44;background:linear-gradient(120deg,#fff6d7,#f4e7b6);color:#735316;box-shadow:0 0 0 2px #d8b56920}
+.growth-trigger.can-grow:hover:not(:disabled){background:#fff0bc}
+.can-grow .growth-beacon{color:#b7821c;background:#ffe9a3;border-radius:50%;box-shadow:0 0 10px #d5a33d85;animation:growth-glow 2.6s ease-in-out infinite}
+.can-grow .growth-available{font-weight:700;color:#8b6119}
+@keyframes growth-glow{0%,100%{box-shadow:0 0 5px #d5a33d66}50%{box-shadow:0 0 15px #d5a33daa}}
+#growth-dialog{max-width:440px}
+#growth-dialog .growth{padding:0}
+#growth-dialog .growth-balance{font-size:.9rem}
+#growth-dialog .growth-balance strong{color:var(--forest);font-size:1.25rem;margin-left:8px}
+#growth-dialog .growth-buttons{grid-template-columns:1fr 1fr;gap:10px}
+#growth-dialog .growth-buttons button{padding:15px 9px;font-size:.8rem;min-height:48px}
+#growth-dialog .growth>p:last-child{font-size:.75rem;margin-top:18px;margin-bottom:0}
+#log-dialog{max-width:620px}
+#log-dialog .log-list{max-height:55vh;margin:0;overscroll-behavior:contain}
+#log-dialog .log-list li{font-size:.83rem;padding:11px 0}
+#log-dialog .log-list span{min-width:42px}
+.game-dashboard .main-column{grid-row:auto;min-width:0}
+.game-dashboard .event-board{grid-template-columns:110px 152px minmax(220px,1fr) minmax(210px,270px);gap:25px;min-height:320px;padding:28px;align-items:start;background:linear-gradient(120deg,#f5f4e9,#fffef9 45%)}
+.game-dashboard .card-table{display:contents}
+.game-dashboard .deck-area{grid-column:1;align-self:center;min-width:0}
+.game-dashboard .dealt-area{grid-column:2;align-self:center;min-width:0;position:relative;z-index:2}
+.game-dashboard .event-content{grid-column:3;padding:0 4px;display:block}
+.game-dashboard .event-heading{margin-bottom:20px}
+.game-dashboard .event-content .story{margin-bottom:20px}
+.event-dice{min-width:0;grid-column:4;transition:opacity .2s ease}
+.event-dice .dice-area{padding:22px 12px;margin-bottom:12px}
+.event-dice .die{width:52px;height:52px;font-size:1.8rem}
+.event-dice .total{font-size:.96rem;line-height:1.65}
+.event-dice .actions button{font-size:.81rem;padding:13px}
+.event-dice .dice-formula{line-height:1.8;font-size:.69rem}
+.dice-idle{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:195px;text-align:center;background:#f0f2e9;border:1px dashed #d9decd;border-radius:10px;padding:22px 16px;color:#77826c}
+.dice-idle>span{font-size:2.7rem;line-height:1;color:#aab29a;margin:0 0 18px}
+.dice-idle strong{font-size:.83rem;color:#617157}
+.dice-idle p{font-size:.72rem;line-height:1.8;margin:10px 0 0}
+.game-dashboard .is-dealing .event-content,.is-dealing .event-dice{opacity:0;pointer-events:none}
+.game-dashboard .draw-caption{position:absolute;left:340px;right:28px;top:44%;margin:0;grid-column:auto}
+.game-dashboard .hand-panel{grid-column:auto;grid-row:auto}
+@media(min-width:1400px){.game-dashboard .event-panel{min-height:320px}}
+@media(max-width:1150px){.play-summary{grid-template-columns:minmax(180px,1fr) 190px minmax(280px,1.3fr);gap:14px}.status-ribbon{grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}.status-ribbon .status-overview,.status-ribbon .vital-resource{grid-column:span 2}.status-ribbon .stat-pair{grid-row:2;flex-direction:row;justify-content:space-around;gap:20px}.status-ribbon .stat-pair{grid-column:span 3}.status-ribbon .stat-row{flex:1;border:0;padding:0}.game-dashboard .event-board{grid-template-columns:105px 152px minmax(200px,1fr) minmax(190px,220px);gap:18px;padding:22px}}
+@media(max-width:980px){.play-summary{grid-template-columns:minmax(0,1fr) 210px}.play-summary .route{grid-column:1/-1}.game-dashboard .event-board{grid-template-columns:105px 152px minmax(0,1fr)}.game-dashboard .deck-area,.game-dashboard .dealt-area{grid-row:1/span 2;align-self:start}.event-dice{grid-column:3}.status-ribbon .vital-resource{padding:18px}.game-dashboard .draw-caption{left:300px}}
+@media(max-width:740px){main:has(.game-dashboard){padding:18px 14px}.game-dashboard{gap:15px}.play-summary{gap:12px;grid-template-columns:minmax(0,1fr)}.play-summary .route{grid-column:auto}.play-summary>button{padding:14px 17px}.journey-identity h1{font-size:1.2rem}.journey-identity p{font-size:.7rem;margin-top:7px}.identity-line{justify-content:space-between;gap:10px}.status-ribbon{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.status-ribbon .status-overview{grid-column:1/-1;padding:14px 17px;display:grid;grid-template-columns:1fr 1.2fr;align-items:center;gap:14px}.status-overview .panel-title{display:block;margin:0}.status-overview .panel-title small{display:block;margin-top:5px}.status-ribbon .vital-resource,.status-ribbon .stat-pair{padding:14px 10px;grid-column:auto}.status-ribbon .heart-icons{gap:3px}.status-ribbon .heart-icon{width:23px;height:25px}.status-ribbon .bread-icons{grid-template-columns:repeat(5,21px);gap:4px}.status-ribbon .bread-icon{width:21px;height:24px}.status-ribbon .stat-pair,.status-ribbon .stat-pair:last-child{grid-row:auto;grid-column:auto;flex-direction:column;gap:0}.status-ribbon .stat-row{padding:10px 3px}.status-ribbon .stat-row+.stat-row{border-top:1px solid #e9eadf}.growth-trigger{padding:9px 7px}.growth-trigger-title{font-size:.69rem}.growth-count{font-size:.61rem}.growth-caption,.growth-available{font-size:.59rem}.game-dashboard .event-board{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px 16px;padding:21px 16px}.game-dashboard .deck-area,.game-dashboard .dealt-area{grid-row:1;align-self:center}.game-dashboard .event-content{grid-column:1/-1;padding:0}.event-dice{grid-column:1/-1}.game-dashboard .draw-caption{left:16px;right:16px;top:auto;bottom:18px}.game-dashboard .is-dealing{min-height:320px}.game-dashboard .is-dealing .event-content,.game-dashboard .is-dealing .event-dice{display:none}.game-dashboard .card-place{width:136px;height:194px}.game-dashboard .deck-pile{width:88px;height:122px}.game-dashboard .ready-content{align-self:auto}.event-dice .dice-idle{min-height:145px}.game-dashboard .hand-panel{padding:18px 14px}}
+@media(prefers-reduced-motion:reduce){.can-grow .growth-beacon{animation:none}.event-dice{transition:none}}

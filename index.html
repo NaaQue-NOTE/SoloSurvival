@@ -7,10 +7,10 @@
   <meta name="description" content="식량을 챙기고, 위기를 넘고, 황무지 끝의 피난처에 도착하세요. 혼자 즐기는 한국어 카드 생존 게임.">
   <title>솔로 서바이벌 · 황무지의 끝에서</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23202e29'/%3E%3Cpath d='M7 30 20 9 33 30Z' fill='%23d9ad6b'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=20261010-5">
+  <link rel="stylesheet" href="style.css?v=20261010-6">
   <script defer src="events.js"></script>
   <script defer src="engine.js"></script>
-  <script defer src="app.js?v=20261010-5"></script>
+  <script defer src="app.js?v=20261010-6"></script>
 </head>
 <body>
   <header class="topbar"><a class="brand" href="./index.html"><span class="brand-mark" aria-hidden="true">△</span><span>솔로 서바이벌<small>황무지의 끝에서</small></span></a><nav aria-label="게임 메뉴"><span id="save-status" class="save-status">혼자 떠나는 생존 여정</span><button class="quiet" id="rules-open">플레이 안내</button><button class="quiet" id="new-open" hidden>새 여정</button></nav></header>
@@ -27,6 +27,8 @@
   </div></dialog>
   <dialog id="new-dialog" aria-labelledby="new-title"><h2 id="new-title">새로운 여정을 시작할까요?</h2><p>지금까지의 자동 저장은 새 여정으로 바뀝니다.</p><div class="button-row"><button class="secondary" data-close="new-dialog">취소하기</button><button id="new-confirm">새 생존자 만들기</button></div></dialog>
   <dialog id="food-dialog" aria-labelledby="food-title"><div class="dialog-head"><h2 id="food-title">보유한 식량</h2><button class="quiet" data-close="food-dialog">닫기</button></div><p class="food-total"><strong id="food-total"></strong><span>개</span></p><p class="muted">빵 하나는 식량 1개입니다.<br>화면에는 최대 20개까지 표시됩니다.</p></dialog>
+  <dialog id="growth-dialog" aria-labelledby="growth-title"><div class="dialog-head"><h2 id="growth-title">여정의 경험</h2><button class="quiet" data-close="growth-dialog">닫기</button></div><div id="growth-content"></div></dialog>
+  <dialog id="log-dialog" aria-labelledby="log-title"><div class="dialog-head"><h2 id="log-title">지나온 여정</h2><button class="quiet" data-close="log-dialog">닫기</button></div><ul id="log-content" class="log-list"></ul></dialog>
   <noscript>이 게임을 실행하려면 브라우저에서 자바스크립트를 허용해 주세요.</noscript>
 </body>
 </html>

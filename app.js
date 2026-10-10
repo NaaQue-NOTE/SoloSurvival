@@ -4,14 +4,14 @@
   const $=id=>document.getElementById(id),app=$('app');
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const signed=n=>n>0?`+${n}`:String(n);
-  let state=null,saved=null,saveError='',previousWounds=null,selectedHand=null,isDealing=false,isSubmitting=false;
+  let state=null,saved=null,saveError='',previousVitals=null,vitalTransition=null,selectedHand=null,isDealing=false,isSubmitting=false;
   try{const raw=localStorage.getItem(KEY);if(raw)saved=E.restore(raw);}catch(e){saveError='기존 저장을 읽지 못했습니다. 새 여정을 시작하면 저장이 교체됩니다.';}
   function landscape(){return `<svg class="landscape" viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#425345"/><stop offset="1" stop-color="#9b966d"/></linearGradient></defs><rect width="600" height="300" fill="url(#sky)"/><circle cx="418" cy="84" r="40" fill="#e4c894" opacity=".8"/><path d="M0 174 75 131 122 153 182 101 235 153 299 132 370 174 466 122 530 159 600 123V300H0Z" fill="#667461"/><path d="M0 218 80 193 129 216 235 173 330 213 454 179 600 209V300H0Z" fill="#3d5545"/><path d="M0 252 105 223 197 240 311 218 431 248 600 217V300H0Z" fill="#253d31"/><path d="M294 300 Q376 270 310 249 Q278 237 346 219 L359 219 Q302 238 334 247 Q401 272 348 300Z" fill="#b5a67e" opacity=".65"/><path d="M451 179v-32h17v-12h20v40h10v-24h16v34M60 199v-35h23v-17h9v48" fill="#3a4c3e"/><path d="M537 259v-50m-15 20 15-20 16 21m-26-33 10-18 11 18M139 240v-44m-15 21 15-25 17 25" stroke="#20382b" stroke-width="5" fill="none"/><path d="M354 207v-10l8-7 9 7v10Zm6 0v-6h5v6" fill="#ead39c"/><circle cx="291" cy="269" r="3" fill="#182b22"/><path d="m291 272-2 12m2-10 5 6m-6 3-4 10m4-9 5 9" stroke="#182b22" stroke-width="2.5"/></svg>`;}
   function button(action,label,extra='',secondary=false){return `<button data-action="${action}" ${extra} class="${secondary?'secondary':''}">${label}</button>`;}
   function announce(text){$('notice').textContent=text;}
   function persist(){try{E.validate(state);localStorage.setItem(KEY,JSON.stringify(state));saved=state;$('save-status').textContent='이 브라우저에 저장됨';$('save-status').className='save-status saved';}catch(e){$('save-status').textContent='자동 저장 실패';announce('자동 저장에 실패했습니다. 이 창을 닫으면 진행이 사라질 수 있습니다. 브라우저의 저장 허용 설정을 확인해 주세요.');}}
   function setup(){
-    previousWounds=null;selectedHand=null;
+    previousVitals=null;vitalTransition=null;selectedHand=null;
     $('new-open').hidden=true;
     app.innerHTML=`<section class="hero"><div class="hero-copy"><div class="eyebrow">당신의 선택으로 이어지는 52장의 여정</div><h1>황무지의 끝에,<br>아직 내일이 있습니다.</h1><p>조금의 식량과 두 개의 주사위.<br>버려진 길에서 필요한 것을 찾고,<br>살아남아 피난처에 도착하세요.</p></div>${landscape()}</section>
     ${saved?`<section class="panel resume-card"><div><h2 class="setup-title">${esc(saved.name)}의 여정이 남아 있습니다.</h2><p class="muted">${saved.day}일차 · 식량 ${saved.food} · 부상 ${saved.wounds}/5 · ${saved.phase==='over'?'종료된 여정':'남은 여정 '+saved.deck.length+'장'}</p></div>${button('resume',saved.phase==='over'?'지난 여정 결과 보기':'저장한 여정 이어하기')}</section>`:''}
@@ -35,11 +35,36 @@
   let pendingNew=null;
   function heartIcon(){return '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 27S3 19 3 10.5C3 3.5 12 2 16 8c4-6 13-4.5 13 2.5C29 19 16 27 16 27Z"/></svg>';}
   function breadIcon(){return '<svg viewBox="0 0 32 32" aria-hidden="true"><path class="bread-crust" d="M8 27V15C1 14 3 5 10 5c3-3 9-3 12 0 7 0 9 9 2 10v12Z"/><path class="bread-cut" d="m11 10 3 4m4-5 3 4"/></svg>';}
+  function heartChange(kind){
+    if(kind==='recovered')return `<span class="heart-fill">${heartIcon()}</span>`;
+    if(kind==='lost')return ['left','right'].map(side=>`<span class="heart-shard ${side}">${heartIcon()}</span>`).join('');
+    return '';
+  }
+  function breadChange(kind){
+    if(kind==='gained')return `<span class="bread-stamp">${breadIcon()}</span>`;
+    if(kind==='lost')return [0,1,2,3].map(i=>`<span class="bread-piece piece-${i}">${breadIcon()}</span>`).join('')+Array.from({length:6},(_,i)=>`<span class="bread-crumb crumb-${i}"></span>`).join('');
+    return '';
+  }
   function vitals(){
-    const remaining=5-state.wounds,previousRemaining=previousWounds===null?remaining:5-previousWounds;
-    previousWounds=state.wounds;
-    const slots=10;
-    return `<div class="vitals"><section class="vital-resource health-resource"><h3>부상</h3><div class="heart-icons" role="img" aria-label="부상 ${state.wounds}/5, 남은 하트 ${remaining}개">${Array.from({length:5},(_,i)=>`<span class="heart-icon ${i<remaining?'full':'empty'} ${i>=remaining&&i<previousRemaining?'lost':''}" aria-hidden="true">${heartIcon()}</span>`).join('')}</div><p class="vital-hint">다칠 때마다 하트가 하나씩 사라집니다.</p></section><section class="vital-resource food-resource ${state.food===0?'danger':''}"><h3>식량</h3><div class="food-supply"><div class="bread-icons" role="img" aria-label="식량 ${state.food}개">${Array.from({length:slots},(_,i)=>`<span class="bread-icon ${i<state.food?'full':'empty'}" aria-hidden="true">${breadIcon()}</span>`).join('')}</div><button type="button" class="secondary food-more" data-action="food-count" aria-label="전체 식량 개수 보기" aria-haspopup="dialog" aria-controls="food-dialog" ${state.food<10?'disabled':''}><span aria-hidden="true">+</span></button></div>${state.food===0?'<p class="vital-hint">식량이 없습니다.</p>':''}</section></div>`;
+    const now=performance.now(),current={wounds:state.wounds,food:state.food};
+    if(previousVitals&&(previousVitals.wounds!==current.wounds||previousVitals.food!==current.food))vitalTransition={from:previousVitals,started:now};
+    previousVitals=current;
+    const motion=!matchMedia('(prefers-reduced-motion: reduce)').matches&&vitalTransition&&now-vitalTransition.started<1600?vitalTransition:null;
+    const elapsed=motion?now-motion.started:0,remaining=5-state.wounds,beforeHearts=motion?5-motion.from.wounds:remaining;
+    const beforeFood=motion?motion.from.food:state.food,beforeBread=Math.min(10,beforeFood),bread=Math.min(10,state.food),foodDelta=state.food-beforeFood;
+    const hearts=Array.from({length:5},(_,i)=>{
+      const kind=i>=remaining&&i<beforeHearts?'lost':i>=beforeHearts&&i<remaining?'recovered':'';
+      const delay=(kind==='lost'?beforeHearts-1-i:i-beforeHearts)*90-elapsed;
+      return `<span class="heart-icon ${i<remaining?'full':'empty'} ${kind}" style="--vital-delay:${kind?delay:0}ms" aria-hidden="true">${heartIcon()}${heartChange(kind)}</span>`;
+    }).join('');
+    const breads=Array.from({length:10},(_,i)=>{
+      let kind=i>=bread&&i<beforeBread?'lost':i>=beforeBread&&i<bread?'gained':'';
+      // 10칸이 모두 찬 상태의 변화는 마지막 아이콘과 증감 표시로 알려 줍니다.
+      if(!kind&&i===9&&bread===10&&beforeBread===10&&foodDelta)kind=foodDelta>0?'gained':'lost';
+      const delay=Math.max(0,kind==='lost'?beforeBread-1-i:i-beforeBread)*80-elapsed;
+      return `<span class="bread-icon ${i<bread?'full':'empty'} ${kind}" style="--vital-delay:${kind?delay:0}ms" aria-hidden="true">${breadIcon()}${breadChange(kind)}</span>`;
+    }).join('');
+    return `<div class="vitals"><section class="vital-resource health-resource"><h3>부상</h3><div class="heart-icons" role="img" aria-label="부상 ${state.wounds}/5, 남은 하트 ${remaining}개">${hearts}</div><p class="vital-hint">다칠 때마다 하트가 하나씩 사라집니다.</p></section><section class="vital-resource food-resource ${state.food===0?'danger':''}"><h3>식량</h3>${foodDelta?`<span class="resource-delta ${foodDelta>0?'gain':'loss'}" style="--vital-delay:${-elapsed}ms" aria-hidden="true">${signed(foodDelta)}</span>`:''}<div class="food-supply"><div class="bread-icons" role="img" aria-label="식량 ${state.food}개">${breads}</div><button type="button" class="secondary food-more" data-action="food-count" aria-label="전체 식량 개수 보기" aria-haspopup="dialog" aria-controls="food-dialog" ${state.food<10?'disabled':''}><span aria-hidden="true">+</span></button></div>${state.food===0?'<p class="vital-hint">식량이 없습니다.</p>':''}</section></div>`;
   }
   function growthReady(){return state.phase!=='over'&&state.discard.length>=10&&Object.values(state.stats).some(n=>n<3);}
   function survivor(){return `<section class="status-ribbon" aria-label="생존자 상태"><div class="panel status-overview"><div class="panel-title"><h2>생존자 상태</h2><small>부상 한계 5</small></div><button type="button" class="growth-trigger ${growthReady()?'can-grow':''}" data-action="growth-open" aria-haspopup="dialog" aria-controls="growth-dialog"><span class="growth-trigger-title"><span class="growth-beacon" aria-hidden="true">✦</span>여정의 경험</span><span class="growth-count">${state.discard.length} / 10장</span>${growthReady()?'<span class="growth-available">성장 가능 · 눌러서 능력치 올리기</span>':'<span class="growth-caption">10장을 모아 능력치를 올립니다</span>'}</button></div>${vitals()}<div class="panel stats-board" aria-label="능력치">${['S','C','H','D'].map(k=>{const v=D.suits[k];return `<div class="stat-row"><span><span class="${k==='H'||k==='D'?'red':''}">${v.symbol}</span> ${v.stat}</span><b>${signed(state.stats[k])}</b></div>`;}).join('')}</div></section>`;}

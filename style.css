@@ -15,8 +15,6 @@
 .heart-icon path{stroke:#bb5552;stroke-width:1.8;stroke-linejoin:round}
 .heart-icon.full path{fill:#c75754}
 .heart-icon.empty path{fill:none;stroke:#cbb8ab}
-.heart-icon.lost path{animation:heart-fade .6s ease-out}
-@keyframes heart-fade{from{fill:#c75754;stroke:#bb5552}to{fill:transparent;stroke:#cbb8ab}}
 .vital-hint{font-size:.66rem;line-height:1.6;color:var(--muted);margin:8px 0 0}
 .food-supply{display:flex;align-items:center;gap:8px;min-width:0}
 .bread-icons{display:grid;flex:0 1 148px;min-width:0;grid-template-columns:repeat(5,minmax(0,24px));gap:5px 7px}
@@ -32,7 +30,6 @@
 .food-total strong{font-size:3rem;color:var(--forest);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;min-width:0}
 .food-total span{font-size:1rem;color:var(--muted)}
 #food-dialog>.muted{text-align:center;font-size:.82rem;margin-bottom:0}
-@media(prefers-reduced-motion:reduce){.heart-icon.lost path{animation:none}}
 /* 오른쪽 기록과 하단에 펼친 손패 */
 .game-grid{grid-template-columns:205px minmax(0,1fr) 245px;gap:22px}
 .main-column,.journey-sidebar,.side-stack{min-width:0}
@@ -220,3 +217,34 @@ main:has(.game-dashboard){max-width:1600px;padding-top:22px}
 .submitted-card{will-change:transform,opacity}
 
 .submission-layer{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:1000}
+
+/* 부상과 식량 변화: 슬롯의 위치는 유지하고 그림만 움직입니다. */
+.heart-icon,.bread-icon{position:relative;isolation:isolate;max-width:100%}
+.heart-shard,.heart-fill,.bread-piece,.bread-stamp{position:absolute;inset:0;pointer-events:none}
+.heart-icon .heart-shard path,.heart-icon .heart-fill path{fill:#c75754;stroke:#bb5552}
+.heart-shard.left{clip-path:polygon(0 0,52% 0,45% 35%,57% 51%,45% 68%,52% 100%,0 100%);--shard-x:-12px;--shard-y:12px;--shard-turn:-25deg}
+.heart-shard.right{clip-path:polygon(52% 0,100% 0,100% 100%,52% 100%,45% 68%,57% 51%,45% 35%);--shard-x:12px;--shard-y:15px;--shard-turn:25deg}
+.heart-shard{animation:heart-break 760ms var(--vital-delay,0ms) cubic-bezier(.3,.05,.7,1) both}
+@keyframes heart-break{0%{transform:translate(0,0) rotate(0);opacity:1}22%{transform:translate(calc(var(--shard-x)*.2),-2px) rotate(calc(var(--shard-turn)*.3));opacity:1}100%{transform:translate(var(--shard-x),var(--shard-y)) rotate(var(--shard-turn)) scale(.7);opacity:0}}
+.heart-icon.recovered>svg path{fill:none;stroke:#cbb8ab}
+.heart-fill{animation:heart-refill 780ms var(--vital-delay,0ms) cubic-bezier(.25,.6,.3,1) both}
+@keyframes heart-refill{0%{clip-path:inset(100% 0 0)}100%{clip-path:inset(0 0 0)}}
+.bread-icon .bread-piece .bread-crust,.bread-icon .bread-stamp .bread-crust{fill:#e2ad60;stroke:#aa7137}
+.bread-icon .bread-piece .bread-cut,.bread-icon .bread-stamp .bread-cut{stroke:#fff0c3}
+.bread-piece{animation:bread-crumble 680ms var(--vital-delay,0ms) ease-in both}
+.piece-0{clip-path:polygon(0 0,53% 0,46% 32%,55% 50%,27% 46%,0 55%);--crumb-x:-13px;--crumb-y:19px;--crumb-turn:-40deg}
+.piece-1{clip-path:polygon(53% 0,100% 0,100% 52%,72% 46%,55% 50%,46% 32%);--crumb-x:14px;--crumb-y:17px;--crumb-turn:35deg}
+.piece-2{clip-path:polygon(0 55%,27% 46%,55% 50%,46% 73%,54% 100%,0 100%);--crumb-x:-9px;--crumb-y:26px;--crumb-turn:25deg}
+.piece-3{clip-path:polygon(55% 50%,72% 46%,100% 52%,100% 100%,54% 100%,46% 73%);--crumb-x:11px;--crumb-y:29px;--crumb-turn:-30deg}
+@keyframes bread-crumble{0%{transform:translate(0,0) rotate(0);opacity:1}20%{transform:translate(0,-2px) rotate(0);opacity:1}100%{transform:translate(var(--crumb-x),var(--crumb-y)) rotate(var(--crumb-turn)) scale(.35);opacity:0}}
+.bread-crumb{position:absolute;left:45%;top:45%;width:3px;height:3px;background:#d9a353;border:1px solid #b78440;border-radius:1px;pointer-events:none;animation:bread-crumbs 720ms var(--vital-delay,0ms) ease-out both}
+.crumb-0{--crumb-x:-19px;--crumb-y:15px}.crumb-1{--crumb-x:18px;--crumb-y:20px}.crumb-2{--crumb-x:-12px;--crumb-y:30px}.crumb-3{--crumb-x:12px;--crumb-y:32px}.crumb-4{--crumb-x:-22px;--crumb-y:25px}.crumb-5{--crumb-x:22px;--crumb-y:9px}
+@keyframes bread-crumbs{0%,12%{transform:translate(0,0) scale(.2);opacity:0}25%{opacity:1}100%{transform:translate(var(--crumb-x),var(--crumb-y)) rotate(150deg) scale(.4);opacity:0}}
+.bread-icon.gained>svg{visibility:hidden}
+.bread-stamp{transform-origin:center 70%;animation:bread-stamp 480ms var(--vital-delay,0ms) both}
+@keyframes bread-stamp{0%{transform:translateY(-12px) scale(1.7) rotate(-9deg);opacity:0}45%{transform:translateY(1px) scale(.85,1.08) rotate(2deg);opacity:1}68%{transform:translateY(-2px) scale(1.07,.95) rotate(-1deg);opacity:1}100%{transform:translateY(0) scale(1) rotate(0);opacity:1}}
+.food-resource{position:relative}
+.resource-delta{position:absolute;top:15px;right:16px;font-size:.78rem;font-weight:800;pointer-events:none;animation:resource-change 1400ms var(--vital-delay,0ms) both}
+.resource-delta.gain{color:#537443}.resource-delta.loss{color:#ad5946}
+@keyframes resource-change{0%{opacity:0;transform:translateY(4px)}15%,65%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-6px)}}
+@media(prefers-reduced-motion:reduce){.heart-shard,.heart-fill,.bread-piece,.bread-crumb,.bread-stamp,.resource-delta{display:none;animation:none}.heart-icon.recovered>svg path{fill:#c75754;stroke:#bb5552}.bread-icon.gained>svg{visibility:visible}}

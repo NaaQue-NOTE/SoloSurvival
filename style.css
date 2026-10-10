@@ -143,7 +143,7 @@ main:has(.game-dashboard){max-width:1600px;padding-top:22px}
 .status-ribbon .stat-pair{display:flex;flex-direction:column;justify-content:center}
 .status-ribbon .stat-row{padding:13px 0;font-size:.84rem}
 .status-ribbon .stat-row:first-child{border-top:0}
-.growth-trigger{display:grid;grid-template-columns:1fr auto;gap:8px 6px;width:100%;padding:11px 10px;border:1px solid #d9dfcd;border-radius:9px;background:#f0f3e8;color:#50624e;text-align:left;transform:none!important}
+.growth-trigger{display:grid;grid-template-columns:1fr auto;gap:8px 6px;width:100%;padding:11px 10px;border:1px solid #d9dfcd;border-radius:9px;background:#f0f3e8;color:#50624e;text-align:left}
 .growth-trigger:hover:not(:disabled){background:#e7ecdc}
 .growth-trigger-title{display:flex;align-items:center;gap:5px;font-size:.76rem;white-space:nowrap}
 .growth-count{align-self:center;font-size:.68rem;white-space:nowrap;font-weight:400}
@@ -151,7 +151,7 @@ main:has(.game-dashboard){max-width:1600px;padding-top:22px}
 .growth-caption,.growth-available{grid-column:1/-1;font-size:.62rem;font-weight:400;line-height:1.6}
 .growth-caption{color:var(--muted)}
 .growth-trigger.can-grow{border-color:#c69a44;background:linear-gradient(120deg,#fff6d7,#f4e7b6);color:#735316;box-shadow:0 0 0 2px #d8b56920}
-.growth-trigger.can-grow:hover:not(:disabled){background:#fff0bc}
+
 .can-grow .growth-beacon{color:#b7821c;background:#ffe9a3;border-radius:50%;box-shadow:0 0 10px #d5a33d85;animation:growth-glow 2.6s ease-in-out infinite}
 .can-grow .growth-available{font-weight:700;color:#8b6119}
 @keyframes growth-glow{0%,100%{box-shadow:0 0 5px #d5a33d66}50%{box-shadow:0 0 15px #d5a33daa}}
@@ -248,3 +248,33 @@ main:has(.game-dashboard){max-width:1600px;padding-top:22px}
 .resource-delta.gain{color:#537443}.resource-delta.loss{color:#ad5946}
 @keyframes resource-change{0%{opacity:0;transform:translateY(4px)}15%,65%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-6px)}}
 @media(prefers-reduced-motion:reduce){.heart-shard,.heart-fill,.bread-piece,.bread-crumb,.bread-stamp,.resource-delta{display:none;animation:none}.heart-icon.recovered>svg path{fill:#c75754;stroke:#bb5552}.bread-icon.gained>svg{visibility:visible}}
+
+/* 클릭 가능한 조작은 솟은 면과 눌리는 바닥으로 통일합니다. */
+button:not(.playing-card),.outcomes>summary{
+ --button-top:#3b5d48;--button-bottom:#263f31;--button-rim:#254431;--button-edge:#162d21;--button-ink:#fffdf2;
+}
+button.secondary,button.quiet,button.growth-trigger,.outcomes>summary{
+ --button-top:#fffef6;--button-bottom:#e9ede0;--button-rim:#c7d0bc;--button-edge:#b1bea3;--button-ink:#364e3c;
+}
+.hand-actions button:not(.secondary),button.growth-trigger.can-grow{
+ --button-top:#fff2c8;--button-bottom:#ead295;--button-rim:#c6a35b;--button-edge:#a88743;--button-ink:#624a20;
+}
+button:not(.playing-card),.play-summary>button,.growth-trigger,.growth-trigger.can-grow,.hand-actions button,.hand-actions button.secondary,.outcomes>summary{
+ color:var(--button-ink);background:linear-gradient(180deg,var(--button-top),var(--button-bottom));border:1px solid var(--button-rim);
+ box-shadow:inset 0 1px 0 #ffffff80,inset 0 -1px 0 #0000000d,0 4px 0 var(--button-edge),0 6px 10px #25392220;
+ transition:transform .1s ease,box-shadow .1s ease,filter .1s ease;touch-action:manipulation;
+}
+.outcomes>summary{padding:11px 13px;border-radius:8px;font-weight:700;cursor:pointer;line-height:1.5}
+@media(hover:hover){
+ button:not(.playing-card):hover:not(:disabled),.outcomes>summary:hover{
+  background:linear-gradient(180deg,var(--button-top),var(--button-bottom));filter:brightness(1.04);transform:translateY(-1px);
+  box-shadow:inset 0 1px 0 #ffffff90,inset 0 -1px 0 #0000000d,0 5px 0 var(--button-edge),0 8px 12px #25392228;
+ }
+}
+button:not(.playing-card):active:not(:disabled),.outcomes>summary:active{
+ transform:translateY(3px);filter:brightness(.98);box-shadow:inset 0 2px 4px #00000018,0 1px 0 var(--button-edge),0 2px 4px #25392218;
+}
+button:not(.playing-card):disabled{opacity:.48;transform:none;filter:none;box-shadow:inset 0 1px 0 #ffffff60,0 1px 0 var(--button-edge);cursor:not-allowed}
+button:not(.playing-card):focus-visible,.outcomes>summary:focus-visible{outline:3px solid #be913b;outline-offset:5px}
+button.playing-card:active:not(:disabled){scale:.98}
+@media(prefers-reduced-motion:reduce){button:not(.playing-card),.outcomes>summary{transition:none}}

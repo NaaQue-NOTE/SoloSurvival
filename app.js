@@ -4,7 +4,7 @@
   const $=id=>document.getElementById(id),app=$('app');
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const signed=n=>n>0?`+${n}`:String(n);
-  let state=null,saved=null,saveError='',previousWounds=null,selectedHand=null;
+  let state=null,saved=null,saveError='',previousWounds=null,selectedHand=null,isDealing=false;
   try{const raw=localStorage.getItem(KEY);if(raw)saved=E.restore(raw);}catch(e){saveError='기존 저장을 읽지 못했습니다. 새 여정을 시작하면 저장이 교체됩니다.';}
   function landscape(){return `<svg class="landscape" viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#425345"/><stop offset="1" stop-color="#9b966d"/></linearGradient></defs><rect width="600" height="300" fill="url(#sky)"/><circle cx="418" cy="84" r="40" fill="#e4c894" opacity=".8"/><path d="M0 174 75 131 122 153 182 101 235 153 299 132 370 174 466 122 530 159 600 123V300H0Z" fill="#667461"/><path d="M0 218 80 193 129 216 235 173 330 213 454 179 600 209V300H0Z" fill="#3d5545"/><path d="M0 252 105 223 197 240 311 218 431 248 600 217V300H0Z" fill="#253d31"/><path d="M294 300 Q376 270 310 249 Q278 237 346 219 L359 219 Q302 238 334 247 Q401 272 348 300Z" fill="#b5a67e" opacity=".65"/><path d="M451 179v-32h17v-12h20v40h10v-24h16v34M60 199v-35h23v-17h9v48" fill="#3a4c3e"/><path d="M537 259v-50m-15 20 15-20 16 21m-26-33 10-18 11 18M139 240v-44m-15 21 15-25 17 25" stroke="#20382b" stroke-width="5" fill="none"/><path d="M354 207v-10l8-7 9 7v10Zm6 0v-6h5v6" fill="#ead39c"/><circle cx="291" cy="269" r="3" fill="#182b22"/><path d="m291 272-2 12m2-10 5 6m-6 3-4 10m4-9 5 9" stroke="#182b22" stroke-width="2.5"/></svg>`;}
   function button(action,label,extra='',secondary=false){return `<button data-action="${action}" ${extra} class="${secondary?'secondary':''}">${label}</button>`;}
@@ -44,9 +44,38 @@
   function survivor(){return `<div class="side-stack"><section class="panel survivor-panel"><div class="panel-title"><h2>생존자 상태</h2><small>부상 한계 5</small></div>${vitals()}${Object.entries(D.suits).map(([k,v])=>`<div class="stat-row"><span><span class="${k==='H'||k==='D'?'red':''}">${v.symbol}</span> ${v.stat}</span><b>${signed(state.stats[k])}</b></div>`).join('')}</section></div>`;}
   function growth(){return `<section class="panel growth"><div class="panel-title"><h3>여정의 경험</h3><small>${state.discard.length} / 10장</small></div><p>버린 카드 10장을 제거해<br>능력치 하나를 올릴 수 있습니다.</p><div class="growth-buttons">${Object.entries(D.suits).map(([k,v])=>button('grow',`${v.symbol} ${v.stat} +1`,`data-suit="${k}" ${state.phase==='over'||state.discard.length<10||state.stats[k]>=3?'disabled':''}`,true)).join('')}</div><div class="pile-counts"><span>제거한 카드 ${state.removed.length}</span><span>상한 +3</span></div></section>`;}
   function route(){const left=state.deck.length+(state.current?1:0),done=52-left;return `<section class="route" aria-label="여정 진행"><div class="route-head"><strong>피난처까지의 길</strong><span>덱 ${state.deck.length}장 남음${state.current?' · 사건 진행 중':''}</span></div><div class="route-track" role="progressbar" aria-label="지나온 카드" aria-valuemin="0" aria-valuemax="52" aria-valuenow="${done}"><div class="route-progress" style="width:${done/52*100}%"></div></div><div class="route-foot"><span>출발</span><span>${done} / 52장</span><span>피난처</span></div></section>`;}
+  function cardFace(id){
+    const e=D.events[id],suit=D.suits[e.suit];
+    return `<span class="card-corner" aria-hidden="true"><b>${e.rank}</b><span>${suit.symbol}</span></span><span class="card-emblem" aria-hidden="true">${suit.symbol}</span><span class="card-name">${esc(e.title)}</span><span class="card-kind">${state.medkits.includes(id)?'보관한 구급상자':suit.stat+'의 자원'}</span><span class="card-corner bottom" aria-hidden="true"><b>${e.rank}</b><span>${suit.symbol}</span></span>`;
+  }
+  function cardBack(){return '<div class="card-back-pattern"><span class="back-compass">✧</span><span class="back-title">솔로<br>서바이벌</span><span class="back-suits">♠ ♥ ♣ ♦</span></div>';}
+  function cardTable(){
+    const id=state.current?.id,e=id?D.events[id]:null;
+    return `<div class="card-table"><div class="deck-area"><span class="table-caption">여정 덱</span><div class="deck-pile ${state.deck.length?'':'exhausted'}" role="img" aria-label="남은 덱 ${state.deck.length}장"><div class="deck-top card-back">${state.deck.length?cardBack():'<span class="empty-deck">모든 카드를 뽑았습니다</span>'}</div></div><span class="deck-count">${state.deck.length}장 남음</span></div><div class="dealt-area"><span class="table-caption">오늘의 카드</span><div class="card-place">${e?`<div id="dealt-card" class="dealt-card" aria-label="${E.label(id)} ${esc(e.title)}"><div class="card-flipper"><div class="playing-card card-front ${e.suit==='H'||e.suit==='D'?'red':''}">${cardFace(id)}</div><div class="card-back card-reverse" aria-hidden="true">${cardBack()}</div></div></div>`:'<div class="empty-place"><span aria-hidden="true">✧</span><p>다음 여정이<br>이곳에 놓입니다</p></div>'}</div></div></div>`;
+  }
+  async function revealCard(){
+    const card=$('dealt-card'),deck=app.querySelector('.deck-top'),flip=card?.querySelector('.card-flipper');
+    try{
+      if(!card||!deck||!flip||!card.animate||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+      const from=deck.getBoundingClientRect(),to=card.getBoundingClientRect();
+      const x=from.x+from.width/2-to.x-to.width/2,y=from.y+from.height/2-to.y-to.height/2,scale=from.width/to.width;
+      const travel=card.animate([
+        {transform:`translate(${x}px,${y}px) scale(${scale}) rotate(-5deg)`,offset:0},
+        {transform:`translate(${x+20}px,${y-24}px) scale(${scale+.12}) rotate(-9deg)`,offset:.25},
+        {transform:'translate(0,-14px) scale(1.04) rotate(2deg)',offset:.8},
+        {transform:'translate(0,0) scale(1) rotate(0deg)',offset:1}
+      ],{duration:1250,easing:'cubic-bezier(.22,.7,.25,1)',fill:'both'});
+      const turn=flip.animate([{transform:'rotateY(180deg)',offset:0},{transform:'rotateY(180deg)',offset:.3},{transform:'rotateY(0deg)',offset:.82},{transform:'rotateY(0deg)',offset:1}],{duration:1250,easing:'ease-in-out',fill:'both'});
+      await Promise.all([travel.finished,turn.finished]);
+    }catch(error){/* 연출이 중단돼도 저장된 사건을 그대로 표시합니다. */}
+    finally{
+      isDealing=false;render();
+      if(!document.querySelector('dialog[open]'))app.querySelector('.event-title')?.focus({preventScroll:true});
+    }
+  }
   function eventView(){
     if(state.phase==='over'){const win=state.outcome==='won';return `<section class="panel event-panel"><div class="end-mark" aria-hidden="true">${win?'⌂':'◌'}</div><div class="eyebrow" style="text-align:center">${win?'여정 완료':'여정 종료'}</div><h2 class="end-title">${win?'살아남았습니다.':'여기서 잠시 멈춥니다.'}</h2><p class="end-description">${win?'황무지 너머, 마침내 피난처의 불빛에 닿았습니다.':'부상이 5에 도달했습니다. 이번 여정은 끝났지만,<br>다른 생존자의 이야기를 시작할 수 있습니다.'}</p><div class="end-stats"><span>버틴 시간<strong>${state.day}일</strong></span><span>남은 식량<strong>${state.food}</strong></span><span>남은 덱<strong>${state.deck.length}장</strong></span></div><div class="actions">${button('restart','새로운 생존자로 시작하기')}</div></section>`;}
-    if(state.phase==='ready')return `<section class="panel event-panel"><div class="rest-art">${landscape()}</div><div class="eyebrow">${state.day?'다음 발걸음':'첫 발걸음'}</div><h2 class="rest-title">${state.day?'다시, 길 위로.':'피난처를 향해 출발하세요.'}</h2><p class="ready-note">${state.food?'식량 1을 먹고 다음 사건을 공개합니다.':'식량이 없습니다. 다음 날을 시작하면 부상을 1 받습니다.'}${state.discard.length>=10?'<br>출발하기 전에 능력치를 올릴 수 있습니다.':''}</p><div class="actions">${button('next',`${state.day?'다음 날로 이동하기':'첫날 시작하기'} · ${state.food?'식량 −1':'부상 +1'}`)}</div></section>`;
+    if(state.phase==='ready')return `<section class="panel event-panel event-board">${cardTable()}<div class="event-content ready-content"><div class="eyebrow">${state.day?'다음 발걸음':'첫 발걸음'}</div><h2 class="rest-title">${state.day?'다시, 길 위로.':'피난처를 향해 출발하세요.'}</h2><p class="ready-note">여정 덱에서 한 장을 뽑아<br>오늘의 사건을 마주하세요.</p><p class="ready-note">${state.food?'식량 1을 먹고 다음 사건을 공개합니다.':'식량이 없습니다. 다음 날을 시작하면 부상을 1 받습니다.'}${state.discard.length>=10?'<br>출발하기 전에 능력치를 올릴 수 있습니다.':''}</p><div class="actions">${button('next',`${state.day?'다음 날 카드 뽑기':'첫날 카드 뽑기'} · ${state.food?'식량 −1':'부상 +1'}`)}</div></div></section>`;
     const c=state.current,e=D.events[c.id],su=D.suits[e.suit];
     let body='';
     if(state.phase==='choice')body=`<div class="actions">${E.choices(state).map(a=>button('choose',esc(a.label),`data-choice="${a.id}" ${a.disabled?'disabled':''}`,a.id==='pass'||a.id==='leave')).join('')}</div>${e.trade?`<p class="action-hint">하단 손패에서 판매할 카드를 선택하세요. 거래 ${c.trades}/2회.</p>`:''}${E.choices(state).some(a=>a.disabled)?'<p class="action-hint">흐리게 표시된 선택은 식량이 부족해 선택할 수 없습니다.</p>':''}`;
@@ -56,7 +85,7 @@
     }
     if(state.phase==='result')body=`<div class="result-box" role="status"><p>${esc(c.result)}</p></div><div class="actions">${button('proceed',c.pending==='roll'?'다음 판정 준비하기':c.pending==='choice'?'수색을 계속할지 결정하기':'사건 마치기')}</div>`;
     const repeat=e.repeat==='three'?`세 번 판정 · ${c.rolls}/3회`:e.repeat==='until'?`성공할 때까지 · ${c.rolls}회 판정`:e.repeat==='search3'?`최대 세 번 수색 · ${c.rolls}/3회`:e.repeat==='twice'?`최대 두 번 시도 · ${c.rolls}/2회`:su.detail;
-    return `<section class="panel event-panel"><div class="event-heading"><span class="card-stamp ${e.suit==='H'||e.suit==='D'?'red':''}">${E.label(c.id)}</span><div><div class="eyebrow">${su.stat}의 사건 · ${repeat}</div><h2>${e.title}</h2></div></div><p class="story">${e.story}</p>${e.repeat==='three'?'<p class="rules-note">규칙 해석: 원문의 ‘세 번 판정’을 우선해 큰 성공 후에도 판정을 계속합니다.</p>':''}${body}${e.outcomes?`<details class="outcomes"><summary>판정별 결과 확인하기</summary>${e.outcomes.map((o,i)=>`<div class="outcome-row"><b class="tier-${i}">${['6 이하','7~9','10 이상'][i]}</b><span>${o.text}</span></div>`).join('')}</details>`:''}</section>`;
+    return `<section class="panel event-panel event-board ${isDealing?'is-dealing':''}" aria-busy="${isDealing}">${cardTable()}${isDealing?'<p class="draw-caption" role="status">오늘의 카드를 펼치는 중…</p>':''}<div class="event-content" ${isDealing?'inert aria-hidden="true"':''}><div class="event-heading"><div><div class="eyebrow">${su.stat}의 사건 · ${repeat}</div><h2 class="event-title" tabindex="-1">${e.title}</h2></div></div><div class="event-section-label">벌어진 일</div><p class="story">${e.story}</p>${e.repeat==='three'?'<p class="rules-note">규칙 해석: 원문의 ‘세 번 판정’을 우선해 큰 성공 후에도 판정을 계속합니다.</p>':''}<div class="event-section-label">${state.phase==='result'?'사건의 결과':state.phase==='choice'?'어떻게 하시겠어요?':'주사위 판정'}</div>${body}${e.outcomes?`<details class="outcomes"><summary>판정별 결과 확인하기</summary>${e.outcomes.map((o,i)=>`<div class="outcome-row"><b class="tier-${i}">${['6 이하','7~9','10 이상'][i]}</b><span>${o.text}</span></div>`).join('')}</details>`:''}</div></section>`;
   }
   function hand(){
     if(!state.hand.includes(selectedHand))selectedHand=null;
@@ -64,7 +93,7 @@
     const boost=state.phase==='rolled',trade=state.phase==='choice'&&state.current.id==='H4'&&state.current.trades<2;
     const med=selectedHand&&state.medkits.includes(selectedHand);
     return `<section class="hand-panel" aria-labelledby="hand-title"><div class="hand-heading"><div><h2 id="hand-title" tabindex="-1">보유한 카드 <span>${state.hand.length}장</span></h2><p class="hand-hint">카드를 선택해 자세히 보기 · 판정에 사용하면 같은 무늬 +2, 다른 무늬 +1</p></div>${state.hand.length>5?'<span class="hand-scroll-hint">좌우로 넘겨 모든 카드 보기 ↔</span>':''}</div>
-    ${state.hand.length?`<div class="hand-scroll" tabindex="0" role="region" aria-label="보유 카드 목록, 좌우로 스크롤"><ul class="hand-fan">${state.hand.map((id,i)=>{const e=D.events[id],suit=D.suits[e.suit],position=state.hand.length>1?(i/(state.hand.length-1)-.5)*2:0;return `<li class="hand-slot ${selectedHand===id?'selected':''}" style="--tilt:${(position*5).toFixed(2)}deg;--rise:${Math.round(Math.abs(position)*13)}px"><button type="button" class="playing-card ${e.suit==='H'||e.suit==='D'?'red':''}" data-action="select-card" data-card="${id}" aria-pressed="${selectedHand===id}" aria-controls="hand-selection" aria-label="${E.label(id)} ${esc(e.title)} 선택"><span class="card-corner" aria-hidden="true"><b>${e.rank}</b><span>${suit.symbol}</span></span><span class="card-emblem" aria-hidden="true">${suit.symbol}</span><span class="card-name">${esc(e.title)}</span><span class="card-kind">${state.medkits.includes(id)?'보관한 구급상자':suit.stat+'의 자원'}</span><span class="card-corner bottom" aria-hidden="true"><b>${e.rank}</b><span>${suit.symbol}</span></span></button></li>`;}).join('')}</ul></div>`:'<div class="hand-empty"><span aria-hidden="true">♠ ♥ ♣ ♦</span><p>아직 보유한 카드가 없습니다. 여정에서 얻은 카드가 이곳에 펼쳐집니다.</p></div>'}
+    ${state.hand.length?`<div class="hand-scroll" tabindex="0" role="region" aria-label="보유 카드 목록, 좌우로 스크롤"><ul class="hand-fan">${state.hand.map((id,i)=>{const e=D.events[id],position=state.hand.length>1?(i/(state.hand.length-1)-.5)*2:0;return `<li class="hand-slot ${selectedHand===id?'selected':''}" style="--tilt:${(position*5).toFixed(2)}deg;--rise:${Math.round(Math.abs(position)*13)}px"><button type="button" class="playing-card ${e.suit==='H'||e.suit==='D'?'red':''}" data-action="select-card" data-card="${id}" aria-pressed="${selectedHand===id}" aria-controls="hand-selection" aria-label="${E.label(id)} ${esc(e.title)} 선택">${cardFace(id)}</button></li>`;}).join('')}</ul></div>`:'<div class="hand-empty"><span aria-hidden="true">♠ ♥ ♣ ♦</span><p>아직 보유한 카드가 없습니다. 여정에서 얻은 카드가 이곳에 펼쳐집니다.</p></div>'}
     <div id="hand-selection" class="hand-selection" aria-live="polite">${selected?`<div class="selected-copy"><h3>${E.label(selectedHand)} · ${esc(selected.title)}</h3><p>${med?'치료에 쓰거나, 판정 보정 또는 거래에 사용할 수 있습니다.':'손패에서는 사건 효과를 다시 실행하지 않고 판정 보정 또는 거래에 사용합니다.'}</p></div><div class="hand-actions">${boost?button('boost',`판정에 사용 · +${selected.suit===state.current.id[0]?2:1}`,`data-card="${selectedHand}"`):''}${trade?button('trade','판매하기 · 식량 +2',`data-card="${selectedHand}"`):''}${med&&state.phase!=='over'?button('heal','치료하기 · 부상 −1',state.wounds===0?'disabled':'',true):''}${!boost&&!trade&&!med?`<span class="hand-wait">${state.phase==='over'?'종료된 여정입니다.':'주사위 판정 후 또는 상인과 거래할 때 사용할 수 있습니다.'}</span>`:''}</div>`:`<p class="selection-hint">${state.hand.length?'카드를 누르면 여기에서 사용 방법을 확인할 수 있습니다.':'카드를 얻으면 선택해서 사용할 수 있습니다.'}</p>`}</div></section>`;
   }
   function render(){
@@ -74,14 +103,22 @@
     const handFocused=!!document.activeElement?.closest('.hand-panel');
     app.innerHTML=`<div class="journey-top"><div><h1>${esc(state.name)}의 여정</h1><p class="muted">먹을 것을 찾고, 위기를 넘고, 한 걸음 더 나아가세요.</p></div><span class="day-badge">${state.day?`${state.day}일차`:'출발 준비'}</span></div><div class="game-grid">${survivor()}<div class="main-column">${route()}${eventView()}</div><aside class="journey-sidebar" aria-label="여정의 경험과 기록">${growth()}<section class="panel log-panel"><details ${open?'open':''}><summary>지나온 여정 <span class="muted">· 기록 ${state.log.length}개</span></summary><ul class="log-list">${state.log.slice().reverse().map(l=>`<li><span>${l.day}일차</span>${esc(l.text)}</li>`).join('')}</ul></details></section></aside>${hand()}</div>`;
     if(app.querySelector('.hand-scroll'))app.querySelector('.hand-scroll').scrollLeft=scroll;
+    $('new-open').disabled=isDealing;
+    for(const panel of app.querySelectorAll('.journey-sidebar,.hand-panel'))panel.inert=isDealing;
     if(handFocused)(app.querySelector(`[data-action="select-card"][data-card="${selectedHand}"]`)||$('hand-title')).focus({preventScroll:true});
   }
   app.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b||b.disabled)return;const a=b.dataset.action;
+    if(isDealing)return;
+    if(a==='next'){
+      announce('');if(!E.next(state))return;
+      persist();isDealing=!!state.current&&state.phase!=='over';render();
+      if(isDealing)void revealCard();return;
+    }
     if(a==='select-card'){selectedHand=b.dataset.card;render();return;}
     if(a==='food-count'){$('food-total').textContent=String(state.food);$('food-dialog').showModal();return;}
     if(a==='resume'){state=E.restore(JSON.stringify(saved));render();$('save-status').textContent='저장한 여정을 불러옴';return;}
     if(a==='restart'){state=null;setup();return;}
-    const funcs={next:()=>E.next(state),choose:()=>E.choose(state,b.dataset.choice),roll:()=>E.roll(state),resolve:()=>E.resolve(state),proceed:()=>E.proceed(state),boost:()=>E.boost(state,b.dataset.card),trade:()=>E.trade(state,b.dataset.card),heal:()=>E.heal(state),grow:()=>E.grow(state,b.dataset.suit)};
+    const funcs={choose:()=>E.choose(state,b.dataset.choice),roll:()=>E.roll(state),resolve:()=>E.resolve(state),proceed:()=>E.proceed(state),boost:()=>E.boost(state,b.dataset.card),trade:()=>E.trade(state,b.dataset.card),heal:()=>E.heal(state),grow:()=>E.grow(state,b.dataset.suit)};
     if(funcs[a]){announce('');if(funcs[a]()){persist();render();}}
   });
   $('rules-open').addEventListener('click',()=>$('rules-dialog').showModal());

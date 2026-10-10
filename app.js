@@ -4,7 +4,7 @@
   const $=id=>document.getElementById(id),app=$('app');
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const signed=n=>n>0?`+${n}`:String(n);
-  let state=null,saved=null,saveError='',previousWounds=null,selectedHand=null,isDealing=false;
+  let state=null,saved=null,saveError='',previousWounds=null,selectedHand=null,isDealing=false,isSubmitting=false;
   try{const raw=localStorage.getItem(KEY);if(raw)saved=E.restore(raw);}catch(e){saveError='기존 저장을 읽지 못했습니다. 새 여정을 시작하면 저장이 교체됩니다.';}
   function landscape(){return `<svg class="landscape" viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#425345"/><stop offset="1" stop-color="#9b966d"/></linearGradient></defs><rect width="600" height="300" fill="url(#sky)"/><circle cx="418" cy="84" r="40" fill="#e4c894" opacity=".8"/><path d="M0 174 75 131 122 153 182 101 235 153 299 132 370 174 466 122 530 159 600 123V300H0Z" fill="#667461"/><path d="M0 218 80 193 129 216 235 173 330 213 454 179 600 209V300H0Z" fill="#3d5545"/><path d="M0 252 105 223 197 240 311 218 431 248 600 217V300H0Z" fill="#253d31"/><path d="M294 300 Q376 270 310 249 Q278 237 346 219 L359 219 Q302 238 334 247 Q401 272 348 300Z" fill="#b5a67e" opacity=".65"/><path d="M451 179v-32h17v-12h20v40h10v-24h16v34M60 199v-35h23v-17h9v48" fill="#3a4c3e"/><path d="M537 259v-50m-15 20 15-20 16 21m-26-33 10-18 11 18M139 240v-44m-15 21 15-25 17 25" stroke="#20382b" stroke-width="5" fill="none"/><path d="M354 207v-10l8-7 9 7v10Zm6 0v-6h5v6" fill="#ead39c"/><circle cx="291" cy="269" r="3" fill="#182b22"/><path d="m291 272-2 12m2-10 5 6m-6 3-4 10m4-9 5 9" stroke="#182b22" stroke-width="2.5"/></svg>`;}
   function button(action,label,extra='',secondary=false){return `<button data-action="${action}" ${extra} class="${secondary?'secondary':''}">${label}</button>`;}
@@ -79,7 +79,7 @@
     const hasRoll=!!e?.outcomes,rolled=!!c?.dice;
     let content='';
     if(!hasRoll)content=`<div class="dice-idle"><span aria-hidden="true">${e?'◇':'⚄'}</span><strong>${e?'주사위 없이 진행':'다음 사건을 기다립니다'}</strong><p>${e?'카드의 선택과 효과를 확인해 주세요.':'카드를 뽑으면 판정 여부가 표시됩니다.'}</p></div>`;
-    else content=`<div class="dice-area"><div class="dice-row">${[0,1].map(i=>`<span class="die ${rolled?'':'unrolled'}" aria-label="${i+1}번 주사위 ${rolled?c.dice[i]:'대기'}">${rolled?c.dice[i]:'?'}</span>`).join('')}</div><p class="dice-formula">${rolled?`${c.dice.join(' + ')} + 능력치 (${signed(c.modifier)}) + 손패 ${c.bonus}`:`6면체 두 개 + ${su.symbol} ${su.stat} ${signed(state.stats[e.suit])}`}</p>${rolled?`<div class="total tier-${E.tier(state)}" aria-live="polite">${E.total(state)} · ${['실패','성공','큰 성공'][E.tier(state)]}</div>`:`<div class="total">${state.phase==='choice'?'선택 후 판정을 진행합니다.':'운과 준비를 시험할 때입니다.'}</div>`}</div>${state.phase==='roll'?`<div class="actions">${button('roll','주사위 두 개 굴리기')}</div>`:state.phase==='rolled'?`<div class="actions">${button('resolve','이 결과로 확정하기')}</div><p class="action-hint">손패를 사용해 결과를 높인 뒤 확정할 수 있습니다.</p>`:''}`;
+    else content=`<div class="dice-area"><div class="dice-row">${[0,1].map(i=>`<span class="die ${rolled?'':'unrolled'}" aria-label="${i+1}번 주사위 ${rolled?c.dice[i]:'대기'}">${rolled?c.dice[i]:'?'}</span>`).join('')}</div><p class="dice-formula">${rolled?`${c.dice.join(' + ')} + 능력치 (${signed(c.modifier)}) + 손패 ${c.bonus+E.pendingBonus(state)}`:`6면체 두 개 + ${su.symbol} ${su.stat} ${signed(state.stats[e.suit])}`}</p>${rolled?`<div class="total tier-${E.tier(state)}" aria-live="polite">${E.total(state)} · ${['실패','성공','큰 성공'][E.tier(state)]}</div>`:`<div class="total">${state.phase==='choice'?'선택 후 판정을 진행합니다.':'운과 준비를 시험할 때입니다.'}</div>`}</div>${state.phase==='roll'?`<div class="actions">${button('roll','주사위 두 개 굴리기')}</div>`:state.phase==='rolled'?`<div class="actions">${button('resolve','이 결과로 확정하기')}</div><p class="action-hint">${c.pendingBoosts?.length?`손패 +${E.pendingBonus(state)} · ${c.pendingBoosts.length}장 사용 예정`:'손패를 사용해 결과를 높인 뒤 확정할 수 있습니다.'}</p>`:''}`;
     return `<aside class="event-dice" aria-label="주사위 판정" ${isDealing?'inert aria-hidden="true"':''}><div class="event-section-label">주사위 판정</div>${content}</aside>`;
   }
   function eventView(){
@@ -96,10 +96,11 @@
     if(!state.hand.includes(selectedHand))selectedHand=null;
     const selected=selectedHand?D.events[selectedHand]:null;
     const boost=state.phase==='rolled',trade=state.phase==='choice'&&state.current.id==='H4'&&state.current.trades<2;
+    const pending=state.current?.pendingBoosts||[],reserved=pending.includes(selectedHand);
     const med=selectedHand&&state.medkits.includes(selectedHand);
     return `<section class="hand-panel" aria-labelledby="hand-title"><div class="hand-heading"><div><h2 id="hand-title" tabindex="-1">보유한 카드 <span>${state.hand.length}장</span></h2><p class="hand-hint">카드를 선택해 자세히 보기 · 판정에 사용하면 같은 무늬 +2, 다른 무늬 +1</p></div>${state.hand.length>5?'<span class="hand-scroll-hint">좌우로 넘겨 모든 카드 보기 ↔</span>':''}</div>
-    ${state.hand.length?`<div class="hand-scroll" tabindex="0" role="region" aria-label="보유 카드 목록, 좌우로 스크롤"><ul class="hand-fan">${state.hand.map((id,i)=>{const e=D.events[id],position=state.hand.length>1?(i/(state.hand.length-1)-.5)*2:0;return `<li class="hand-slot ${selectedHand===id?'selected':''}" style="--tilt:${(position*5).toFixed(2)}deg;--rise:${Math.round(Math.abs(position)*13)}px"><button type="button" class="playing-card ${e.suit==='H'||e.suit==='D'?'red':''}" data-action="select-card" data-card="${id}" aria-pressed="${selectedHand===id}" aria-controls="hand-selection" aria-label="${E.label(id)} ${esc(e.title)} 선택">${cardFace(id)}</button></li>`;}).join('')}</ul></div>`:'<div class="hand-empty"><span aria-hidden="true">♠ ♥ ♣ ♦</span><p>아직 보유한 카드가 없습니다. 여정에서 얻은 카드가 이곳에 펼쳐집니다.</p></div>'}
-    <div id="hand-selection" class="hand-selection" aria-live="polite">${selected?`<div class="selected-copy"><h3>${E.label(selectedHand)} · ${esc(selected.title)}</h3><p>${med?'치료에 쓰거나, 판정 보정 또는 거래에 사용할 수 있습니다.':'손패에서는 사건 효과를 다시 실행하지 않고 판정 보정 또는 거래에 사용합니다.'}</p></div><div class="hand-actions">${boost?button('boost',`판정에 사용 · +${selected.suit===state.current.id[0]?2:1}`,`data-card="${selectedHand}"`):''}${trade?button('trade','판매하기 · 식량 +2',`data-card="${selectedHand}"`):''}${med&&state.phase!=='over'?button('heal','치료하기 · 부상 −1',state.wounds===0?'disabled':'',true):''}${!boost&&!trade&&!med?`<span class="hand-wait">${state.phase==='over'?'종료된 여정입니다.':'주사위 판정 후 또는 상인과 거래할 때 사용할 수 있습니다.'}</span>`:''}</div>`:`<p class="selection-hint">${state.hand.length?'카드를 누르면 여기에서 사용 방법을 확인할 수 있습니다.':'카드를 얻으면 선택해서 사용할 수 있습니다.'}</p>`}</div></section>`;
+    ${state.hand.length?`<div class="hand-scroll" tabindex="0" role="region" aria-label="보유 카드 목록, 좌우로 스크롤"><ul class="hand-fan">${state.hand.map((id,i)=>{const e=D.events[id],position=state.hand.length>1?(i/(state.hand.length-1)-.5)*2:0;return `<li class="hand-slot ${selectedHand===id?'selected':''}" style="--tilt:${(position*5).toFixed(2)}deg;--rise:${Math.round(Math.abs(position)*13)}px"><button type="button" class="playing-card ${pending.includes(id)?'pending-card':''} ${e.suit==='H'||e.suit==='D'?'red':''}" data-action="select-card" data-card="${id}" aria-pressed="${selectedHand===id}" aria-controls="hand-selection" aria-label="${E.label(id)} ${esc(e.title)}${pending.includes(id)?' 사용 예정':''} 선택">${cardFace(id)}${pending.includes(id)?`<span class="pending-label">사용 예정 +${id[0]===state.current.id[0]?2:1}</span>`:''}</button></li>`;}).join('')}</ul></div>`:'<div class="hand-empty"><span aria-hidden="true">♠ ♥ ♣ ♦</span><p>아직 보유한 카드가 없습니다. 여정에서 얻은 카드가 이곳에 펼쳐집니다.</p></div>'}
+    <div id="hand-selection" class="hand-selection" aria-live="polite">${selected?`<div class="selected-copy"><h3>${E.label(selectedHand)} · ${esc(selected.title)}</h3><p>${reserved?'확정 전까지 취소할 수 있습니다. 확정하면 이 카드를 소비합니다.':med?'치료에 쓰거나, 판정 보정 또는 거래에 사용할 수 있습니다.':'손패에서는 사건 효과를 다시 실행하지 않고 판정 보정 또는 거래에 사용합니다.'}</p></div><div class="hand-actions">${boost?(reserved?button('cancel-boost','판정 사용 취소',`data-card="${selectedHand}"`,true):button('boost',`판정에 사용 · +${selected.suit===state.current.id[0]?2:1}`,`data-card="${selectedHand}"`)):''}${trade?button('trade','판매하기 · 식량 +2',`data-card="${selectedHand}"`):''}${med&&!reserved&&state.phase!=='over'?button('heal','치료하기 · 부상 −1',state.wounds===0?'disabled':'',true):''}${!boost&&!trade&&!med?`<span class="hand-wait">${state.phase==='over'?'종료된 여정입니다.':'주사위 판정 후 또는 상인과 거래할 때 사용할 수 있습니다.'}</span>`:''}</div>`:`<p class="selection-hint">${state.hand.length?'카드를 누르면 여기에서 사용 방법을 확인할 수 있습니다.':'카드를 얻으면 선택해서 사용할 수 있습니다.'}</p>`}</div></section>`;
   }
   function render(){
     $('new-open').hidden=false;
@@ -114,8 +115,28 @@
     for(const panel of app.querySelectorAll('.growth-trigger,.hand-panel'))panel.inert=isDealing;
     if(handFocused)(app.querySelector(`[data-action="select-card"][data-card="${selectedHand}"]`)||$('hand-title')).focus({preventScroll:true});
   }
+  async function submitResult(){
+    const cards=[...(state.current?.pendingBoosts||[])];
+    const sources=cards.map(id=>app.querySelector(`[data-action="select-card"][data-card="${id}"]`)).filter(Boolean);
+    if(!E.resolve(state))return;
+    persist();
+    if(!sources.length||matchMedia('(prefers-reduced-motion: reduce)').matches){render();return;}
+    isSubmitting=true;app.inert=true;$('new-open').disabled=true;
+    const layer=document.createElement('div');layer.className='submission-layer';layer.setAttribute('aria-hidden','true');layer.inert=true;document.body.append(layer);
+    try{
+      const motions=sources.map((source,i)=>{
+        const r=source.getBoundingClientRect(),copy=source.cloneNode(true);
+        copy.removeAttribute('data-action');copy.removeAttribute('aria-controls');copy.setAttribute('aria-hidden','true');copy.inert=true;
+        copy.classList.add('submitted-card');copy.style.cssText=`position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;z-index:1000;pointer-events:none;margin:0;`;
+        layer.append(copy);source.style.visibility='hidden';
+        return copy.animate([{transform:'translateY(0) scale(1)',opacity:1},{transform:'translateY(-75px) scale(.94)',opacity:.95,offset:.4},{transform:'translateY(-180px) scale(.72)',opacity:0}],{duration:700,delay:Math.min(i*60,240),easing:'ease-in',fill:'forwards'}).finished.catch(()=>{});
+      });
+      await Promise.all(motions);
+    }catch{/* 연출이 중단되어도 이미 저장한 결과를 표시합니다. */}finally{layer.remove();isSubmitting=false;app.inert=false;render();app.querySelector('.event-title')?.focus({preventScroll:true});}
+  }
   document.addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b||b.disabled)return;const a=b.dataset.action;
-    if(isDealing)return;
+    if(isDealing||isSubmitting)return;
+    if(a==='resolve'){void submitResult();return;}
     if(a==='next'){
       announce('');if(!E.next(state))return;
       persist();isDealing=!!state.current&&state.phase!=='over';render();
@@ -127,7 +148,7 @@
     if(a==='food-count'){$('food-total').textContent=String(state.food);$('food-dialog').showModal();return;}
     if(a==='resume'){state=E.restore(JSON.stringify(saved));render();$('save-status').textContent='저장한 여정을 불러옴';return;}
     if(a==='restart'){state=null;setup();return;}
-    const funcs={choose:()=>E.choose(state,b.dataset.choice),roll:()=>E.roll(state),resolve:()=>E.resolve(state),proceed:()=>E.proceed(state),boost:()=>E.boost(state,b.dataset.card),trade:()=>E.trade(state,b.dataset.card),heal:()=>E.heal(state),grow:()=>E.grow(state,b.dataset.suit)};
+    const funcs={choose:()=>E.choose(state,b.dataset.choice),roll:()=>E.roll(state),proceed:()=>E.proceed(state),boost:()=>E.boost(state,b.dataset.card),'cancel-boost':()=>E.cancelBoost(state,b.dataset.card),trade:()=>E.trade(state,b.dataset.card),heal:()=>E.heal(state),grow:()=>E.grow(state,b.dataset.suit)};
     if(funcs[a]){announce('');if(funcs[a]()){persist();render();}}
   });
   $('rules-open').addEventListener('click',()=>$('rules-dialog').showModal());

@@ -213,3 +213,10 @@ main:has(.game-dashboard){max-width:1600px;padding-top:22px}
 @media(min-width:1151px){.game-dashboard .event-board{grid-template-columns:110px 176px minmax(220px,1fr) minmax(210px,270px)}}
 @media(min-width:981px) and (max-width:1150px){.game-dashboard .event-board{grid-template-columns:105px 176px minmax(200px,1fr) minmax(190px,220px)}}
 @media(min-width:741px) and (max-width:980px){.game-dashboard .event-board{grid-template-columns:105px 176px minmax(0,1fr)}}
+
+/* 손패 자리를 유지한 채 사용 예정 표시 */
+.playing-card.pending-card{box-shadow:0 0 0 3px #e6b94f,0 7px 14px #10221766,inset 0 0 0 5px #faf7e9,inset 0 0 0 6px #c7b994}
+.pending-label{position:absolute;top:37px;left:8px;padding:4px 6px;border:1px solid #bf943b;border-radius:5px;background:#f6dfa0;color:#59401b;font-size:.6rem;font-weight:800;line-height:1.2;pointer-events:none}
+.submitted-card{will-change:transform,opacity}
+
+.submission-layer{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:1000}

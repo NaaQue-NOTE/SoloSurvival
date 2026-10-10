@@ -98,7 +98,7 @@ test('500개 난수 여정: 모든 단계 52장 보존, 저장 재개, 교착 �
     E.choose(s,a.id);
    }else if(s.phase==='roll')E.roll(s,random);
    else if(s.phase==='rolled'){
-    while(E.total(s)<7&&s.hand.length){const id=s.hand.find(id=>id[0]===s.current.id[0])||s.hand[0];E.boost(s,id);}
+    while(E.total(s)<7){const available=s.hand.filter(id=>!(s.current.pendingBoosts||[]).includes(id));if(!available.length)break;const id=available.find(id=>id[0]===s.current.id[0])||available[0];E.boost(s,id);}
     E.resolve(s);
    }else E.proceed(s);
    s=E.restore(snapshot(s));steps++;
@@ -106,4 +106,43 @@ test('500개 난수 여정: 모든 단계 52장 보존, 저장 재개, 교착 �
   assert(s.outcome,'진행 교착');if(s.outcome==='won')won++;else lost++;
  }
  assert(won>0&&lost>0);console.log(`모의 여정: 승리 ${won}, 패배 ${lost}, 검사한 단계 ${steps}`);
+});
+
+test('사용 예정 추가와 개별 취소는 손패 순서·경험·주사위를 바꾸지 않음',()=>{
+ const s=fixture('S7');for(const id of ['S4','C4'])moveToHand(s,id);E.choose(s,'test');E.roll(s,()=>.3);
+ const hand=[...s.hand],dice=[...s.current.dice],discard=[...s.discard];
+ assert(E.boost(s,'S4'));assert(E.boost(s,'C4'));assert(!E.boost(s,'S4'));assert.equal(E.total(s),7);
+ assert.deepEqual(s.hand,hand);assert.deepEqual(s.discard,discard);assert(E.cancelBoost(s,'S4'));assert.equal(E.total(s),5);
+ assert(!E.cancelBoost(s,'S4'));assert(E.boost(s,'S4'));assert(E.cancelBoost(s,'C4'));assert(E.cancelBoost(s,'S4'));
+ assert.equal(E.total(s),4);assert.deepEqual(s.current.dice,dice);assert.deepEqual(s.hand,hand);snapshot(s);
+});
+test('사용 예정 저장 재개 후 확정 때 한 번만 소비',()=>{
+ let s=fixture('S7');for(const id of ['S4','C4'])moveToHand(s,id);E.choose(s,'test');E.roll(s,()=>.3);E.boost(s,'S4');E.boost(s,'C4');
+ s=E.restore(snapshot(s));assert.equal(E.total(s),7);assert.deepEqual(s.current.pendingBoosts,['S4','C4']);
+ assert(E.resolve(s));assert.equal(E.total(s),7);assert.deepEqual(s.hand,[]);assert.deepEqual(s.discard,['S4','C4']);assert.deepEqual(s.current.pendingBoosts,[]);
+ assert(!E.resolve(s));assert(!E.cancelBoost(s,'S4'));snapshot(s);
+});
+test('사용 예정 구급상자 중복 치료 차단과 취소 후 치료',()=>{
+ const s=fixture('S7');moveToHand(s,'H2');s.medkits.push('H2');E.choose(s,'test');E.roll(s,()=>.3);
+ E.boost(s,'H2');assert(!E.heal(s));assert(s.medkits.includes('H2'));E.cancelBoost(s,'H2');assert(E.heal(s));assert.equal(E.total(s),4);assert(!E.boost(s,'H2'));snapshot(s);
+});
+test('사용 예정 카드는 확정 전 성장 재료에 포함되지 않음',()=>{
+ const s=fixture('S7');moveToHand(s,'S4');s.discard.push(...s.deck.splice(0,9));E.choose(s,'test');E.roll(s,()=>.3);E.boost(s,'S4');assert(!E.grow(s,'S'));
+ E.resolve(s);assert.equal(s.discard.length,10);assert(E.grow(s,'S'));snapshot(s);
+});
+test('이전 저장의 소비된 보정은 유지하고 새 사용 예정만 취소',()=>{
+ let s=fixture('S7');moveToHand(s,'S4');moveToHand(s,'C4');E.choose(s,'test');E.roll(s,()=>.3);
+ delete s.current.pendingBoosts;s.hand.splice(s.hand.indexOf('S4'),1);s.discard.push('S4');s.current.bonus=2;
+ s=E.restore(snapshot(s));assert.equal(E.total(s),6);assert(!E.cancelBoost(s,'S4'));E.boost(s,'C4');assert.equal(E.total(s),7);E.cancelBoost(s,'C4');assert.equal(E.total(s),6);
+ E.boost(s,'C4');E.resolve(s);assert.equal(E.total(s),7);assert.deepEqual(s.discard,['S4','C4']);snapshot(s);
+});
+test('사용 예정 중복·손패 밖 카드·잘못된 단계 저장 거부',()=>{
+ const s=fixture('S7');moveToHand(s,'S4');E.choose(s,'test');E.roll(s,()=>.3);
+ for(const pending of [['S4','S4'],['S7'],null]){const z=structuredClone(s);z.current.pendingBoosts=pending;assert.throws(()=>E.validate(z));}
+ const z=structuredClone(s);z.phase='roll';z.current.pendingBoosts=['S4'];assert.throws(()=>E.validate(z));
+});
+test('반복 판정과 사망 결과에서도 사용 예정 소모는 완료됨',()=>{
+ for(const lethal of [false,true]){const s=fixture('S7');moveToHand(s,'C4');s.wounds=lethal?4:2;E.choose(s,'test');E.roll(s,()=>0);E.boost(s,'C4');E.resolve(s);
+ assert(s.discard.includes('C4'));assert.deepEqual(s.current.pendingBoosts,[]);snapshot(s);
+ if(lethal)assert.equal(s.phase,'over');else{E.proceed(s);E.roll(s,()=>.5);assert.equal(E.total(s),8);assert.equal(E.pendingBonus(s),0);snapshot(s);}}
 });

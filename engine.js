@@ -54,7 +54,7 @@
     if (s.food > 0) { s.food--; log(s,'하루 식량 1을 먹었습니다.'); }
     else { s.wounds++; log(s,'식량이 없어 부상을 1 받았습니다.'); if(die(s))return true; }
     const id=s.deck.shift();
-    s.current={ id, rolls:0, trades:0, keep:false, medkit:false, dice:null, bonus:0, modifier:null, result:null, pending:null };
+    s.current={ id, rolls:0, trades:0, keep:false, medkit:false, dice:null, bonus:0, pendingBoosts:[], modifier:null, result:null, pending:null };
     s.phase='choice'; log(s,`${label(id)} · ${events[id].title}`); return true;
   }
   function choices(s) {
@@ -74,16 +74,21 @@
   function roll(s,rng=Math.random) {
     if(s.phase!=='roll')return false;
     const c=s.current;
-    c.dice=[Math.floor(rng()*6)+1,Math.floor(rng()*6)+1]; c.modifier=s.stats[c.id[0]];c.bonus=0;c.rolls++;c.result=null;
+    c.dice=[Math.floor(rng()*6)+1,Math.floor(rng()*6)+1]; c.modifier=s.stats[c.id[0]];c.bonus=0;c.pendingBoosts=[];c.rolls++;c.result=null;
     s.phase='rolled'; log(s,`${c.rolls}번째 판정: 주사위 ${c.dice.join(' + ')} / 능력치 ${c.modifier>=0?'+':''}${c.modifier}`);return true;
   }
-  function total(s){const c=s.current;return c?.dice? c.dice[0]+c.dice[1]+c.modifier+c.bonus:null;}
+  function total(s){const c=s.current;return c?.dice? c.dice[0]+c.dice[1]+c.modifier+c.bonus+pendingBonus(s):null;}
   function tier(s){const n=total(s);return n===null?null:n<=6?0:n<=9?1:2;}
   function spend(s,id){const i=s.hand.indexOf(id);if(i<0)return false;s.hand.splice(i,1);s.medkits=s.medkits.filter(x=>x!==id);s.discard.push(id);return true;}
-  function boost(s,id){if(s.phase!=='rolled'||!s.hand.includes(id))return false;const n=id[0]===s.current.id[0]?2:1;spend(s,id);s.current.bonus+=n;log(s,`${label(id)} 손패를 써서 판정 +${n}`);return true;}
+  function pendingBonus(s){return (s.current?.pendingBoosts||[]).reduce((sum,id)=>sum+(id[0]===s.current.id[0]?2:1),0);}
+  function boost(s,id){if(s.phase!=='rolled'||!s.hand.includes(id)||(s.current.pendingBoosts||[]).includes(id))return false;(s.current.pendingBoosts||=[]).push(id);return true;}
+  function cancelBoost(s,id){if(s.phase!=='rolled')return false;const cards=s.current.pendingBoosts||[],i=cards.indexOf(id);if(i<0)return false;cards.splice(i,1);return true;}
   function resolve(s){
     if(s.phase!=='rolled')return false;
     const c=s.current,e=events[c.id],t=tier(s),result=e.outcomes[t];
+    c.bonus+=pendingBonus(s);
+    for(const id of c.pendingBoosts||[]){spend(s,id);log(s,`${label(id)} 손패를 써서 판정 +${id[0]===c.id[0]?2:1}`);}
+    c.pendingBoosts=[];
     c.result=`${total(s)} · ${['실패','성공','큰 성공'][t]} — ${result.text}`;
     log(s,c.result); apply(s,result); if(!alive(s))return true;
     c.pending='finish';
@@ -93,9 +98,9 @@
     if(e.repeat==='search3' && c.rolls<3)c.pending='choice';
     s.phase='result';return true;
   }
-  function proceed(s){if(s.phase!=='result')return false;const p=s.current.pending;if(p==='finish')finish(s);else{s.phase=p;s.current.dice=null;s.current.bonus=0;s.current.modifier=null;s.current.pending=null;}return true;}
+  function proceed(s){if(s.phase!=='result')return false;const p=s.current.pending;if(p==='finish')finish(s);else{s.phase=p;s.current.dice=null;s.current.bonus=0;s.current.pendingBoosts=[];s.current.modifier=null;s.current.pending=null;}return true;}
   function trade(s,id){if(s.phase!=='choice'||s.current.id!=='H4'||s.current.trades>=2||!spend(s,id))return false;s.current.trades++;s.food+=2;log(s,`${label(id)} 손패를 팔아 식량 2를 받았습니다.`);return true;}
-  function heal(s){if(!alive(s)||s.wounds<1||!s.medkits.includes('H2'))return false;spend(s,'H2');s.wounds--;log(s,'보관한 구급상자를 써서 부상 1을 회복했습니다.');return true;}
+  function heal(s){if(!alive(s)||s.wounds<1||!s.medkits.includes('H2')||(s.current?.pendingBoosts||[]).includes('H2'))return false;spend(s,'H2');s.wounds--;log(s,'보관한 구급상자를 써서 부상 1을 회복했습니다.');return true;}
   function grow(s,suit){if(!alive(s)||s.discard.length<10||!(suit in suits)||s.stats[suit]>=3)return false;s.removed.push(...s.discard.splice(0,10));s.stats[suit]++;log(s,`버린 카드 10장을 제거해 ${suits[suit].stat} 능력치를 ${s.stats[suit]}로 올렸습니다. 현재 굴린 판정에는 소급하지 않습니다.`);return true;}
   function validate(s){
     const int=(n,min,max=100000)=>Number.isInteger(n)&&n>=min&&n<=max;
@@ -112,6 +117,7 @@
     if(s.phase==='over'&&s.outcome==='won'&&(s.deck.length||s.current||s.wounds>=5))throw Error('승리 상태 오류입니다.');
     if((s.wounds>=5)!==(s.outcome==='lost'))throw Error('부상 상태 오류입니다.');
     if(s.current){const c=s.current;if(!int(c.rolls,0)||!int(c.trades,0,2)||typeof c.keep!=='boolean'||typeof c.medkit!=='boolean'||!int(c.bonus,0,104))throw Error('사건 상태 오류입니다.');
+      if(c.pendingBoosts!==undefined&&(!Array.isArray(c.pendingBoosts)||new Set(c.pendingBoosts).size!==c.pendingBoosts.length||c.pendingBoosts.some(id=>!s.hand.includes(id))||(c.pendingBoosts.length&&s.phase!=='rolled')))throw Error('사용 예정 손패 오류입니다.');
       if(c.dice!==null&&(!Array.isArray(c.dice)||c.dice.length!==2||c.dice.some(n=>!int(n,1,6))||!int(c.modifier,-1,3)))throw Error('판정 저장 오류입니다.');
       if(s.phase==='rolled'&&(!c.dice||!events[c.id].outcomes))throw Error('진행 중 판정 오류입니다.');
       if(s.phase==='result'&&(!['finish','roll','choice'].includes(c.pending)||typeof c.result!=='string'))throw Error('결과 저장 오류입니다.');
@@ -119,6 +125,6 @@
     return s;
   }
   function restore(raw){return validate(JSON.parse(raw));}
-  const api={newGame,next,choices,choose,roll,total,tier,boost,resolve,proceed,trade,heal,grow,validate,restore,label,effectSummary};
+  const api={newGame,next,choices,choose,roll,total,tier,pendingBonus,boost,cancelBoost,resolve,proceed,trade,heal,grow,validate,restore,label,effectSummary};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.SurvivalEngine=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

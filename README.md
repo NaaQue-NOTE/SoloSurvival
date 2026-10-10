@@ -6,7 +6,7 @@ Javier Loustaunau의 **Solo Survival** 원본 규칙과 사건 자료를 바탕�
 
 ## 실행
 
-- 웹 연결 대상: [solosurvival.duckdns.org](https://solosurvival.duckdns.org)
+- 웹 플레이: [solosurvival.duckdns.org](https://solosurvival.duckdns.org)
 - 로컬 실행: Node.js가 있는 Windows에서 `시작.cmd`를 실행합니다.
 - 저장은 브라우저와 접속 주소마다 별도로 유지됩니다. 공개 주소와 로컬 주소의 저장은 공유되지 않습니다.
 
@@ -15,6 +15,7 @@ Javier Loustaunau의 **Solo Survival** 원본 규칙과 사건 자료를 바탕�
 - [규칙 처리 기준](규칙_처리기준.md): 원작의 모호한 표현에 적용한 해석과 카드별 효과
 - [실행 안내](실행안내.md): 로컬 실행과 저장 방법
 - [제작 기록](제작기록.md): 자동 검사와 브라우저 플레이의 검증 범위
+- [배포 기록](배포기록.md): GitHub Pages·도메인·HTTPS와 공개 접속 검증 결과
 - 검사 명령: `node --test engine.test.cjs`
 
 원작 출처: [제작자 공식 배포 페이지](https://javierloustaunau.itch.io/solo-survival)
